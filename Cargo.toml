@@ -1,0 +1,53 @@
+[package]
+name = "orbit"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "Core UI framework for the Orbit ecosystem - provides the rendering engine, component model, and framework APIs"
+
+[dependencies]
+# Rendering dependencies
+skia-safe = { version = "0.84.0", features = ["gl", "textlayout"] }
+wgpu = { version = "0.19.0", optional = true }
+glium = { version = "0.34", optional = true }
+image = "0.24"
+html5ever = "0.26"
+
+# WASM support
+wasm-bindgen.workspace = true
+js-sys = "0.3.66"
+web-sys = { version = "0.3.66", features = [
+    "Document", 
+    "Element", 
+    "HtmlElement", 
+    "Node", 
+    "Window",
+    "console"
+]}
+
+# Error handling
+thiserror.workspace = true
+log.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+
+# Async runtime
+tokio.workspace = true
+
+[features]
+default = ["skia", "gl"]
+skia = []
+wgpu = ["dep:wgpu"]
+gl = ["dep:glium"]
+web = []
+desktop = []
+embedded = []
+
+[lib]
+name = "orbit"
+path = "src/lib.rs"
