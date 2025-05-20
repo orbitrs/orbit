@@ -95,10 +95,12 @@ jobs:
       - name: Check code formatting
         run: |
           echo "Formatting orbit..."
-          cd orbit && cargo fmt --check
+          cargo fmt --manifest-path=orbit/Cargo.toml --check
         
       - name: Run clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
+        run: |
+          echo "Running clippy on orbit..."
+          cargo clippy --manifest-path=orbit/Cargo.toml --all-targets --all-features -- -D warnings
 
   test:
     name: Test
@@ -172,7 +174,9 @@ jobs:
             . -> target
 
       - name: Run tests
-        run: cargo test --all-features
+        run: |
+          echo "Running tests for orbit..."
+          cargo test --manifest-path=orbit/Cargo.toml --all-features
 
   build:
     name: Build
@@ -246,4 +250,6 @@ jobs:
             . -> target
 
       - name: Build in release mode
-        run: cargo build --release
+        run: |
+          echo "Building orbit in release mode..."
+          cargo build --manifest-path=orbit/Cargo.toml --release
