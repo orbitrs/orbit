@@ -59,5 +59,4 @@ desktop = []
 embedded = []
 
 [lib]
-name = "orbit"
 path = "src/lib.rs"
