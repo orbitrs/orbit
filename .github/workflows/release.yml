@@ -7,10 +7,34 @@ on:
 
 jobs:
   release:
-    uses: orbitrs/orbit-workflows/.github/workflows/reusable/rust-release.yml@main
-    with:
-      publish-crate: true
-      build-docs: true
-      cross-platform-artifacts: true
-    secrets:
-      CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        
+      - name: Build
+        run: cargo build --release
+        
+      - name: Run tests
+        run: cargo test --release
+        
+      - name: Build docs
+        if: success()
+        run: cargo doc --no-deps
+        
+      - name: Publish crate
+        if: success()
+        run: cargo publish --token ${CRATES_TOKEN}
+        env:
+          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
+          
+      - name: Create GitHub release
+        if: success()
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            target/release/orbit
+            target/release/orbit.exe
+          generate_release_notes: true
