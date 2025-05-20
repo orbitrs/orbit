@@ -1,0 +1,188 @@
+<template>
+  <ThemeProvider :theme="theme">
+    <Layout direction="column" align="center" justify="center" gap="20px" padding="20px">
+      <Card :title="'User Profile'" :elevation="2" :padding="'20px'" :border-radius="'8px'">
+        <Layout direction="column" gap="16px">
+          <h2>Welcome, {{ user.name }}</h2>
+          
+          <div class="profile-section">
+            <img :src="user.avatar" class="profile-avatar" />
+            <div class="profile-info">
+              <p><strong>Email:</strong> {{ user.email }}</p>
+              <p><strong>Role:</strong> {{ user.role }}</p>
+              <p><strong>Member since:</strong> {{ formatDate(user.joinDate) }}</p>
+            </div>
+          </div>
+          
+          <Layout direction="column" gap="8px">
+            <h3>Edit Profile</h3>
+            <Input :label="'Display Name'" :value="user.name" :on-change="updateName" />
+            <Input :label="'Email'" :value="user.email" :input-type="'email'" :on-change="updateEmail" />
+            
+            <Layout direction="row" gap="8px" justify="end">
+              <Button :text="'Cancel'" :variant="'secondary'" :on-click="cancel" />
+              <Button :text="'Save Changes'" :variant="'primary'" :on-click="saveChanges" />
+            </Layout>
+          </Layout>
+        </Layout>
+      </Card>
+    </Layout>
+  </ThemeProvider>
+</template>
+
+<style>
+.profile-section {
+  display: flex;
+  gap: 16px;
+  padding: 16px;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+}
+
+.profile-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.profile-info {
+  flex: 1;
+}
+
+h2, h3 {
+  margin: 0;
+  color: var(--orbitkit-primary-color);
+}
+
+h3 {
+  margin-top: 8px;
+}
+</style>
+
+<script>
+use orbit::prelude::*;
+use orbitkit::prelude::*;
+use chrono::{DateTime, Utc};
+
+/// User profile component
+pub struct UserProfile {
+    /// The current user
+    user: User,
+    /// Theme configuration
+    theme: Theme,
+    /// Temporary state for editing
+    edit_state: EditState,
+}
+
+/// User data
+#[derive(Clone)]
+pub struct User {
+    /// User ID
+    id: String,
+    /// User name
+    name: String,
+    /// User email
+    email: String,
+    /// User role
+    role: String,
+    /// User avatar URL
+    avatar: String,
+    /// User join date
+    join_date: DateTime<Utc>,
+}
+
+/// Editing state
+#[derive(Clone, Default)]
+struct EditState {
+    /// Name being edited
+    name: String,
+    /// Email being edited
+    email: String,
+    /// Whether there are unsaved changes
+    has_changes: bool,
+}
+
+/// Properties for the UserProfile component
+pub struct UserProfileProps {
+    /// User ID to display
+    pub user_id: String,
+    /// Optional theme override
+    pub theme: Option<Theme>,
+}
+
+impl Props for UserProfileProps {}
+
+impl Component for UserProfile {
+    type Props = UserProfileProps;
+    
+    fn new(props: Self::Props) -> Self {
+        // In a real app, we would fetch the user data from an API
+        // For now, just create a dummy user
+        let user = User {
+            id: props.user_id,
+            name: "John Doe".to_string(),
+            email: "john.doe@example.com".to_string(),
+            role: "Administrator".to_string(),
+            avatar: "https://i.pravatar.cc/300".to_string(),
+            join_date: Utc::now() - chrono::Duration::days(365),
+        };
+        
+        // Initialize the edit state with the current user data
+        let edit_state = EditState {
+            name: user.name.clone(),
+            email: user.email.clone(),
+            has_changes: false,
+        };
+        
+        // Create the component
+        Self {
+            user,
+            theme: props.theme.unwrap_or_default(),
+            edit_state,
+        }
+    }
+    
+    fn render(&self) -> String {
+        // In a real implementation, this would be automatically generated
+        // from the template. This is just a placeholder.
+        "UserProfile component".to_string()
+    }
+}
+
+impl UserProfile {
+    /// Format a date for display
+    fn format_date(&self, date: DateTime<Utc>) -> String {
+        date.format("%B %d, %Y").to_string()
+    }
+    
+    /// Update the user's name
+    fn update_name(&mut self, name: String) {
+        self.edit_state.name = name;
+        self.edit_state.has_changes = true;
+    }
+    
+    /// Update the user's email
+    fn update_email(&mut self, email: String) {
+        self.edit_state.email = email;
+        self.edit_state.has_changes = true;
+    }
+    
+    /// Cancel changes
+    fn cancel(&mut self) {
+        // Reset the edit state to the current user data
+        self.edit_state.name = self.user.name.clone();
+        self.edit_state.email = self.user.email.clone();
+        self.edit_state.has_changes = false;
+    }
+    
+    /// Save changes to the user profile
+    fn save_changes(&mut self) {
+        // In a real app, we would send the changes to an API
+        // For now, just update the local user data
+        self.user.name = self.edit_state.name.clone();
+        self.user.email = self.edit_state.email.clone();
+        self.edit_state.has_changes = false;
+    }
+}
+</script>
