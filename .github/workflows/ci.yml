@@ -44,9 +44,21 @@ jobs:
       - name: Setup workspace
         working-directory: workspace
         run: |
+          # Verify package names
+          # First ensure each package has the correct name in its Cargo.toml
+          echo "Verifying package names..."
+          
           # Update dependencies to use local paths
-          sed -i.bak 's#orbit = { git = "https://github.com/orbitrs/orbit.git" }#orbit = { path = "../orbit" }#' orbiton/Cargo.toml
-          sed -i.bak 's#orbit-analyzer = { git = "https://github.com/orbitrs/orbit-analyzer.git" }#orbit-analyzer = { path = "../orbit-analyzer" }#' orbiton/Cargo.toml
+          sed -i.bak -E 's#orbit = \{ git = "https://github.com/orbitrs/orbit.git"(, [^}]*)? \}#orbit = { path = "../orbit" }#' orbiton/Cargo.toml
+          sed -i.bak -E 's#orbit-analyzer = \{ git = "https://github.com/orbitrs/orbit-analyzer.git"(, [^}]*)? \}#orbit-analyzer = { path = "../orbit-analyzer" }#' orbiton/Cargo.toml
+          
+          # Verify the package names are correct
+          echo "Checking package name in orbit/Cargo.toml..."
+          [ "$(grep '^name = "orbit"' orbit/Cargo.toml)" ] || exit 1
+          echo "Checking package name in orbiton/Cargo.toml..."
+          [ "$(grep '^name = "orbiton"' orbiton/Cargo.toml)" ] || exit 1
+          echo "Checking package name in orbit-analyzer/Cargo.toml..."
+          [ "$(grep '^name = "orbit-analyzer"' orbit-analyzer/Cargo.toml)" ] || exit 1
 
           # Create workspace Cargo.toml
           cat > Cargo.toml << 'EOFCARGO'
