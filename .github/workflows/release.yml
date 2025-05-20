@@ -7,7 +7,7 @@ on:
 
 jobs:
   release:
-    uses: orbitrs/orbit-workflows/.github/workflows/reusable/rust-release.yml@main
+    uses: orbitrs/orbit-workflows/.github/workflows/rust-release.yml@main
     with:
       publish-crate: true
       build-docs: true
