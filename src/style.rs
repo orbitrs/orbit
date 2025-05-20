@@ -1,5 +1,12 @@
 // Styling system for the Orbit UI framework
 
+#[cfg(test)]
+mod tests;
+
+/// CSS selector specificity (a, b, c)
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Specificity(pub u32, pub u32, pub u32);
+
 /// CSS property
 #[derive(Debug, Clone, PartialEq)]
 pub struct CssProperty {
@@ -18,11 +25,83 @@ pub struct CssSelector {
     pub properties: Vec<CssProperty>,
 }
 
+/// CSS rule with selector, properties, and metadata
+#[derive(Debug, Clone)]
+pub struct StyleRule {
+    /// The CSS selector(s) for this rule
+    pub selectors: Vec<CssSelector>,
+    /// Whether this rule is scoped to a component
+    pub scoped: bool,
+    /// The computed specificity of the selector
+    pub specificity: Specificity,
+    /// Source order for breaking specificity ties
+    pub source_order: usize,
+}
+
 /// CSS stylesheet
 #[derive(Debug, Clone, Default)]
 pub struct Stylesheet {
-    /// Selectors in this stylesheet
-    pub selectors: Vec<CssSelector>,
+    /// Rules in this stylesheet
+    pub rules: Vec<StyleRule>,
+}
+
+impl StyleRule {
+    /// Create a new StyleRule
+    pub fn new(selectors: Vec<CssSelector>, scoped: bool, source_order: usize) -> Self {
+        // Calculate specificity for the most specific selector
+        let specificity = selectors
+            .iter()
+            .map(|s| Self::calculate_specificity(&s.selector))
+            .max()
+            .unwrap_or(Specificity(0, 0, 0));
+
+        Self {
+            selectors,
+            scoped,
+            specificity,
+            source_order,
+        }
+    }
+
+    /// Calculate selector specificity (a, b, c)
+    /// a = ID selectors
+    /// b = Class selectors, attributes, and pseudo-classes
+    /// c = Element selectors and pseudo-elements
+    fn calculate_specificity(selector: &str) -> Specificity {
+        let mut a = 0; // ID selectors
+        let mut b = 0; // Class, attribute, pseudo-class
+        let mut c = 0; // Element and pseudo-element
+
+        for part in selector.split(' ') {
+            // Count ID selectors (#)
+            a += part.matches('#').count() as u32;
+
+            // Count class selectors (.), attributes ([]), pseudo-classes (:)
+            b += part.matches('.').count() as u32;
+            b += part.matches('[').count() as u32;
+            b += part.matches(':').count() as u32;
+            b -= part.matches("::").count() as u32; // Adjust for pseudo-elements
+
+            // Count element selectors and pseudo-elements (::)
+            if !part.starts_with('.') && !part.starts_with('#') && !part.starts_with('[') {
+                c += 1;
+            }
+            c += part.matches("::").count() as u32;
+        }
+
+        Specificity(a, b, c)
+    }
+
+    /// Apply component scoping to selectors
+    pub fn apply_scoping(&mut self, component_id: &str) {
+        if self.scoped {
+            for selector in &mut self.selectors {
+                // Add component scoping class to each selector
+                selector.selector = format!(".{} {}", component_id, selector.selector);
+                self.specificity = Self::calculate_specificity(&selector.selector);
+            }
+        }
+    }
 }
 
 impl Stylesheet {
@@ -31,17 +110,64 @@ impl Stylesheet {
         Self::default()
     }
 
-    /// Add a selector to the stylesheet
-    pub fn add_selector(&mut self, selector: CssSelector) {
-        self.selectors.push(selector);
+    /// Add a rule to the stylesheet
+    pub fn add_rule(&mut self, rule: StyleRule) {
+        self.rules.push(rule);
     }
 
     /// Parse CSS text into a stylesheet
-    pub fn parse(_css: &str) -> Result<Self, StyleError> {
-        let stylesheet = Self::new();
+    pub fn parse(css: &str, scoped: bool) -> Result<Self, StyleError> {
+        let mut stylesheet = Self::new();
+        let mut current_selectors = Vec::new();
+        let mut current_properties = Vec::new();
+        let mut in_rule = false;
+        let mut source_order = 0;
 
-        // Basic CSS parser - will be expanded
-        // This is a placeholder implementation
+        for line in css.lines() {
+            let line = line.trim();
+            
+            // Skip empty lines and comments
+            if line.is_empty() || line.starts_with("/*") {
+                continue;
+            }
+
+            if line.contains('{') {
+                // Start of a rule - parse selectors
+                in_rule = true;
+                current_selectors = line
+                    .split('{')
+                    .next()
+                    .unwrap_or("")
+                    .split(',')
+                    .map(|s| CssSelector {
+                        selector: s.trim().to_string(),
+                        properties: Vec::new(),
+                    })
+                    .collect();
+            } else if line.contains('}') {
+                // End of a rule - create StyleRule
+                in_rule = false;
+                if !current_selectors.is_empty() {
+                    for selector in &mut current_selectors {
+                        selector.properties = current_properties.clone();
+                    }
+                    let rule = StyleRule::new(current_selectors.clone(), scoped, source_order);
+                    stylesheet.add_rule(rule);
+                    source_order += 1;
+                }
+                current_selectors.clear();
+                current_properties.clear();
+            } else if in_rule && line.contains(':') {
+                // Property definition
+                let parts: Vec<&str> = line.split(':').collect();
+                if parts.len() == 2 {
+                    current_properties.push(CssProperty {
+                        name: parts[0].trim().to_string(),
+                        value: parts[1].trim().trim_end_matches(';').to_string(),
+                    });
+                }
+            }
+        }
 
         Ok(stylesheet)
     }
@@ -50,19 +176,24 @@ impl Stylesheet {
     pub fn to_string(&self) -> String {
         let mut result = String::new();
 
-        for selector in &self.selectors {
-            result.push_str(&selector.selector);
-            result.push_str(" {\n");
+        for rule in &self.rules {
+            for selector in &rule.selectors {
+                result.push_str(&selector.selector);
+                if rule.scoped {
+                    result.push_str(" /* scoped */");
+                }
+                result.push_str(" {\n");
 
-            for property in &selector.properties {
-                result.push_str("  ");
-                result.push_str(&property.name);
-                result.push_str(": ");
-                result.push_str(&property.value);
-                result.push_str(";\n");
+                for property in &selector.properties {
+                    result.push_str("  ");
+                    result.push_str(&property.name);
+                    result.push_str(": ");
+                    result.push_str(&property.value);
+                    result.push_str(";\n");
+                }
+
+                result.push_str("}\n\n");
             }
-
-            result.push_str("}\n\n");
         }
 
         result

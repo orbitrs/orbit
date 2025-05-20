@@ -7,5 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  build:
-    uses: orbitrs/orbit-workflows/.github/workflows/reusable/rust-build.yml@main
+  ci:
+    uses: orbitrs/orbit-workflows/.github/workflows/reusable/rust-ci.yml@main
+    with:
+      cross-platform: true

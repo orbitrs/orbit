@@ -3,14 +3,14 @@ name: Release
 on:
   push:
     tags:
-      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
   release:
     uses: orbitrs/orbit-workflows/.github/workflows/reusable/rust-release.yml@main
-    permissions:
-      contents: write
     with:
       publish-crate: true
+      build-docs: true
+      cross-platform-artifacts: true
     secrets:
       CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
