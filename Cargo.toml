@@ -29,6 +29,7 @@ web-sys = { version = "0.3.66", features = [
 ]}
 
 # Error handling
+anyhow.workspace = true
 thiserror.workspace = true
 log.workspace = true
 
@@ -38,6 +39,15 @@ serde_json.workspace = true
 
 # Async runtime
 tokio.workspace = true
+async-trait.workspace = true
+futures.workspace = true
+
+# HTTP client
+reqwest.workspace = true
+url.workspace = true
+
+# Development utilities
+regex.workspace = true
 
 [features]
 default = ["skia", "gl"]

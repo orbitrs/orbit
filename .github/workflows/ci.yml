@@ -21,13 +21,21 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@v2
 
-      - name: Fix module ambiguity issue
+      - name: Setup workspace
         run: |
-          if [ -f "src/parser.rs" ] && [ -f "src/parser/mod.rs" ]; then
+          # Move to workspace root
+          cd $(git rev-parse --show-toplevel)
+          
+          # Fix module ambiguity issue
+          if [ -f "orbit/src/parser.rs" ] && [ -f "orbit/src/parser/mod.rs" ]; then
             echo "Found both parser.rs and parser/mod.rs. Renaming parser.rs to parser_legacy.rs..."
-            mv src/parser.rs src/parser_legacy.rs
+            mv orbit/src/parser.rs orbit/src/parser_legacy.rs
             echo "Renamed parser.rs to parser_legacy.rs to avoid module ambiguity"
           fi
+          
+          # Ensure all crates are using workspace inheritance
+          echo "Checking workspace configuration..."
+          cargo metadata --format-version 1
       
       - name: Check code formatting
         run: cargo fmt --all -- --check
