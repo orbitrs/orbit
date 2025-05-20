@@ -47,24 +47,26 @@ This encourages modular development while maintaining the ability to have everyt
 
 ---
 
-## 🖥️ Renderer Backend: Why WGPU?
+## 🖥️ Renderer Backends: Hybrid Approach
 
-| Feature                 | Skia            | WGPU                         |
-| ----------------------- | --------------- | ---------------------------- |
-| High-quality 2D UI      | ✅ Native vector | ✅ Requires abstraction       |
-| Hardware-accelerated 3D | ❌ Not supported | ✅ Native support             |
-| Custom shaders          | ⚠️ Limited      | ✅ Full control               |
-| Future game engine path | ❌ Not suitable  | ✅ Fully extensible           |
-| WASM support            | ✅ Stable        | ⚠️ Experimental but evolving |
+Orbit uses a hybrid rendering architecture that combines the strengths of both Skia and WGPU:
 
-**Conclusion:**
-WGPU offers the best long-term foundation for Orbit, enabling:
+| Feature                 | Skia (Standard UI)           | WGPU (Advanced UI)             |
+| ----------------------- | ---------------------------- | ------------------------------ |
+| High-quality 2D UI      | ✅ Native vector graphics     | ⚠️ Requires abstraction        |
+| Hardware-accelerated 3D | ❌ Not supported              | ✅ Native support              |
+| Custom shaders          | ⚠️ Limited support            | ✅ Full control                |
+| Future game engine path | ❌ Not suitable               | ✅ Fully extensible            |
+| WASM support            | ✅ Stable and production-ready | ⚠️ Experimental but evolving  |
+| Performance for UI      | ✅ Optimized for 2D           | ⚠️ Overhead for simple UI     |
 
-* Full 2D & 3D rendering
-* Custom shader support and extensibility
-* Building game engines or rich UI experiences
+**Our Hybrid Solution:**
+Orbit leverages both rendering backends through a unified abstraction:
 
-Though WGPU adds early complexity, building an abstraction layer will ease development.
+* **Skia** for standard UI components where vector quality and WASM stability are critical
+* **WGPU** for advanced UI with 3D elements, custom shaders, and game engine capabilities
+
+This approach allows Orbit to excel across different application domains while maintaining a consistent API for developers.
 
 ---
 
@@ -75,26 +77,29 @@ Though WGPU adds early complexity, building an abstraction layer will ease devel
 * `.orbit` parser (template + style + Rust blocks)
 * Template-to-Rust code compiler
 * Orbiton CLI: `new`, `build`, `dev` commands
-* Skia-based renderer (for fast prototyping)
+* Skia-based renderer for standard UI components
 * WASM runtime support
 
-### 🚩 Milestone 2: Renderer Abstraction & WGPU Backend (v0.3)
+### 🚩 Milestone 2: Hybrid Renderer Architecture (v0.3)
 
 * Introduce `RendererBackend` trait abstraction
-* Develop WGPU renderer behind a feature flag
-* Begin replacing Skia with WGPU for native targets
+* Develop WGPU renderer for advanced UI scenarios
+* Implement renderer compositor for combining outputs
+* Add heuristics for automatic renderer selection
+* Define component metadata for renderer preferences
 
-### 🚩 Milestone 3: Full WGPU Engine (v1.0+)
+### 🚩 Milestone 3: Advanced Rendering Capabilities (v1.0+)
 
-* Full 2D & 3D support with custom shaders
+* Optimize coordination between renderers
+* Seamless transitions between 2D and 3D content
 * Scene graph, lighting, camera, and 3D controls
-* Integrate or interop with Rust game engines (Bevy, etc.)
+* Integration with Rust game engines (Bevy, etc.)
 * Enable hybrid rendering modes (SSR, CSR, hydration)
 
 ### 🚩 Milestone 4: Ecosystem & Developer Experience (v1.x)
 
 * Orbit Playground (online editor)
-* OrbitKit component library
+* OrbitKit component library with renderer-specific optimizations
 * Orbiton plugin architecture
 * Comprehensive documentation and tutorials
 
@@ -104,7 +109,10 @@ Though WGPU adds early complexity, building an abstraction layer will ease devel
 
 * **Language:** Rust
 * **Syntax:** HTML-like markup with embedded Rust expressions
-* **Renderer:** WGPU (primary), fallback to Skia for early dev
+* **Renderers:** 
+  * Skia for standard UI components (2D, text, forms)
+  * WGPU for advanced UI elements (3D, shaders, animations)
+* **Renderer Selection:** Automatic based on component needs, with manual override
 * **Build Tools:** Custom transpiler with `cargo` integration
 * **CLI:** Orbiton for project management, build, and dev server
 * **Extensibility:** Modular architecture allowing new backends (embedded, mobile)
@@ -117,7 +125,11 @@ Though WGPU adds early complexity, building an abstraction layer will ease devel
 orbit/
 ├── core/             # Runtime core: state, events, reactivity
 ├── parser/           # Orbit file parser and AST
-├── renderer/         # Renderer implementations (WGPU, Skia, WASM)
+├── renderer/         # Renderer implementations
+│   ├── common/       # Shared renderer abstractions
+│   ├── skia/         # Skia renderer for standard UI
+│   ├── wgpu/         # WGPU renderer for advanced UI
+│   └── compositor/   # Renderer output compositor
 ├── cli/              # Orbiton CLI
 ├── examples/         # Sample apps and demos
 ├── docs/             # Documentation
@@ -128,17 +140,21 @@ orbit/
 
 ## 🔮 Future Considerations
 
-* Orbit Inspector: DevTools for component state & DOM visualization
-* Embedded targets: `no_std` with custom lightweight Skia or WGPU backends
-* Orbit Studio: WYSIWYG GUI Builder for visual app design
-* Pluggable rendering backends: Vello, WebGPU native, Vulkan, Metal
+* Orbit Inspector: DevTools for component state & renderer visualization
+* Declarative Animation System: High-level, unified API for Skia and WGPU animations
+* Advanced Theming Engine: Dynamic themes, custom theme creation, design token integration
+* Embedded targets: `no_std` with optimized Skia/WGPU backends
+* Renderer-specific performance optimizations and benchmarking tools
+* Orbit Studio: WYSIWYG GUI Builder with renderer preview options
+* Additional rendering backends: Vello, WebGPU native, Vulkan, Metal
+* Runtime renderer switching based on performance metrics
 * Precompiled `.orbit` to WASM packages for easy npm distribution
 
 ---
 
 ## 📢 Final Notes
 
-Orbit is more than a UI framework—it’s a **Rust-native UI ecosystem** designed for high performance, safety, and developer joy.
-By embracing WGPU and a unified component model, Orbit aims to be the foundation for the next generation of Rust apps — web, desktop, embedded, and beyond.
+Orbit is more than a UI framework—it's a **Rust-native UI ecosystem** designed for high performance, safety, and developer joy.
+By embracing a hybrid approach with both Skia and WGPU, Orbit provides the best tools for each use case while maintaining a unified API—creating the foundation for the next generation of Rust apps across web, desktop, embedded, and beyond.
 
 > The Orbit has begun. 🛰️
