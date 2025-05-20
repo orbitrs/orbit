@@ -34,27 +34,27 @@ impl EventEmitter {
             handlers: Arc::new(Mutex::new(HashMap::new())),
         }
     }
-    
+
     /// Add an event listener
     pub fn on<E: Event + 'static>(&self, handler: impl Fn(&E) + Send + Sync + 'static) {
         let mut handlers = self.handlers.lock().unwrap();
         let type_id = TypeId::of::<E>();
-        
+
         let handler: EventListenerFn = Box::new(move |event| {
             if let Some(e) = event.as_any().downcast_ref::<E>() {
                 handler(e);
             }
         });
-        
+
         handlers.entry(type_id).or_default().push(handler);
     }
-    
+
     /// Remove all listeners for an event type
     pub fn off<E: Event + 'static>(&self) {
         let mut handlers = self.handlers.lock().unwrap();
         handlers.remove(&TypeId::of::<E>());
     }
-    
+
     /// Emit an event to all registered handlers
     pub fn emit<E: Event + 'static>(&self, event: &E) {
         let handlers = self.handlers.lock().unwrap();
@@ -81,7 +81,8 @@ pub struct MouseEvent {
     pub event_type: MouseEventType,
 }
 
-impl Event for MouseEvent {}
+// Remove explicit impl as MouseEvent already implements Event through the generic impl
+// impl Event for MouseEvent {}
 
 /// Types of mouse events
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

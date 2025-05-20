@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::style::{CssProperty, CssSelector, Specificity, StyleRule, Stylesheet};
 
     #[test]
     fn test_specificity_calculation() {
@@ -62,10 +62,7 @@ mod tests {
         );
 
         rule.apply_scoping("component-123");
-        assert_eq!(
-            rule.selectors[0].selector,
-            ".component-123 .button"
-        );
+        assert_eq!(rule.selectors[0].selector, ".component-123 .button");
         assert_eq!(rule.specificity, Specificity(0, 2, 0));
     }
 

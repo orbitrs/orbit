@@ -18,17 +18,16 @@ impl OrbitParser {
     pub fn parse(content: &str) -> Result<OrbitAst, String> {
         // Split into sections first
         let sections = Self::split_sections(content)?;
-        
+
         // Parse each section
-        let template_node = template::TemplateParser::new(&sections.template)
-            .parse()?;
-        
+        let template_node = template::TemplateParser::new(&sections.template).parse()?;
+
         // TODO: Implement style parser
         let style_node = ast::StyleNode {
             rules: Vec::new(),
             scoped: false,
         };
-        
+
         // TODO: Implement script parser
         let script_node = ast::ScriptNode {
             imports: Vec::new(),
@@ -38,26 +37,26 @@ impl OrbitParser {
             methods: Vec::new(),
             lifecycle: Vec::new(),
         };
-        
+
         Ok(OrbitAst::new(template_node, style_node, script_node))
     }
-    
+
     /// Parse an .orbit file from a file path
     pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<OrbitAst, String> {
-        let content = fs::read_to_string(path)
-            .map_err(|e| format!("Failed to read file: {}", e))?;
+        let content =
+            fs::read_to_string(path).map_err(|e| format!("Failed to read file: {}", e))?;
         Self::parse(&content)
     }
-    
+
     /// Split an .orbit file into its constituent sections
     fn split_sections(content: &str) -> Result<Sections, String> {
         let mut template = String::new();
         let mut style = String::new();
         let mut script = String::new();
-        
+
         let mut current_section = None;
         let mut current_content = String::new();
-        
+
         for line in content.lines() {
             match line.trim() {
                 "<template>" => {
@@ -92,17 +91,17 @@ impl OrbitParser {
                 }
                 _ => {}
             }
-            
-            if let Some(section) = current_section {
+
+            if let Some(_section) = current_section {
                 current_content.push_str(line);
                 current_content.push('\n');
             }
         }
-        
+
         if template.is_empty() {
             return Err("Missing <template> section".to_string());
         }
-        
+
         Ok(Sections {
             template,
             style,
@@ -128,7 +127,7 @@ struct Sections {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_parse_simple_component() {
         let content = r#"
@@ -164,12 +163,17 @@ impl Component for Greeting {
 }
 </script>
 "#;
-        
+
         let ast = OrbitParser::parse(content).unwrap();
-        
+
         // Verify template structure
         match ast.template {
-            TemplateNode::Element { tag, attributes, events: _, children } => {
+            TemplateNode::Element {
+                tag,
+                attributes,
+                events: _,
+                children,
+            } => {
                 assert_eq!(tag, "div");
                 assert!(attributes.contains_key("class"));
                 assert_eq!(children.len(), 2);

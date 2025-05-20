@@ -125,7 +125,7 @@ impl Stylesheet {
 
         for line in css.lines() {
             let line = line.trim();
-            
+
             // Skip empty lines and comments
             if line.is_empty() || line.starts_with("/*") {
                 continue;

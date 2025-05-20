@@ -13,35 +13,35 @@ pub enum Token {
     AttrName(String),
     AttrValue(String),
     Text(String),
-    
+
     // Expression tokens
-    ExprStart,      // {{
-    ExprEnd,        // }}
-    EventHandler,   // @click, @input, etc.
-    
+    ExprStart,    // {{
+    ExprEnd,      // }}
+    EventHandler, // @click, @input, etc.
+
     // Punctuation
-    Equal,          // =
-    Quote,         // " or '
-    
+    Equal, // =
+    Quote, // " or '
+
     // Delimiters
-    OpenBrace,      // {
-    CloseBrace,     // }
-    OpenParen,      // (
-    CloseParen,     // )
-    
+    OpenBrace,  // {
+    CloseBrace, // }
+    OpenParen,  // (
+    CloseParen, // )
+
     // Expression operators
-    Dot,            // .
-    Comma,          // ,
-    Plus,           // +
-    Minus,          // -
-    Star,           // *
-    Slash,          // /
-    
+    Dot,   // .
+    Comma, // ,
+    Plus,  // +
+    Minus, // -
+    Star,  // *
+    Slash, // /
+
     // Keywords
     Identifier(String),
     Number(String),
     String(String),
-    
+
     // Special
     EOF,
     Error(String),
@@ -63,11 +63,11 @@ impl<'a> Tokenizer<'a> {
             column: 0,
         }
     }
-    
+
     /// Get the next token from the input
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
-        
+
         match self.peek() {
             None => Token::EOF,
             Some(ch) => match ch {
@@ -136,15 +136,15 @@ impl<'a> Tokenizer<'a> {
                     self.advance();
                     Token::Text(ch.to_string())
                 }
-            }
+            },
         }
     }
-    
+
     /// Read a complete tag (opening, closing, or self-closing)
     fn read_tag(&mut self) -> Token {
         self.advance(); // Skip <
         let mut name = String::new();
-        
+
         if self.peek() == Some('/') {
             self.advance(); // Skip /
             while let Some(ch) = self.peek() {
@@ -156,7 +156,7 @@ impl<'a> Tokenizer<'a> {
                 self.advance();
             }
         }
-        
+
         while let Some(ch) = self.peek() {
             match ch {
                 '>' => {
@@ -176,15 +176,15 @@ impl<'a> Tokenizer<'a> {
                 }
             }
         }
-        
+
         Token::Error("Unclosed tag".to_string())
     }
-    
+
     /// Read an event handler starting with @
     fn read_event_handler(&mut self) -> Token {
         self.advance(); // Skip @
         let mut name = String::new();
-        
+
         while let Some(ch) = self.peek() {
             if ch.is_alphanumeric() || ch == '-' {
                 name.push(ch);
@@ -193,15 +193,15 @@ impl<'a> Tokenizer<'a> {
                 break;
             }
         }
-        
+
         Token::EventHandler
     }
-    
+
     /// Read a string literal
     fn read_string(&mut self) -> Token {
         let quote = self.advance().unwrap();
         let mut value = String::new();
-        
+
         while let Some(ch) = self.peek() {
             if ch == quote {
                 self.advance();
@@ -210,14 +210,14 @@ impl<'a> Tokenizer<'a> {
             value.push(ch);
             self.advance();
         }
-        
+
         Token::Error("Unclosed string literal".to_string())
     }
-    
+
     /// Read a number literal
     fn read_number(&mut self) -> Token {
         let mut number = String::new();
-        
+
         while let Some(ch) = self.peek() {
             if ch.is_ascii_digit() || ch == '.' {
                 number.push(ch);
@@ -226,14 +226,14 @@ impl<'a> Tokenizer<'a> {
                 break;
             }
         }
-        
+
         Token::Number(number)
     }
-    
+
     /// Read an identifier
     fn read_identifier(&mut self) -> Token {
         let mut ident = String::new();
-        
+
         while let Some(ch) = self.peek() {
             if ch.is_alphanumeric() || ch == '_' {
                 ident.push(ch);
@@ -242,10 +242,10 @@ impl<'a> Tokenizer<'a> {
                 break;
             }
         }
-        
+
         Token::Identifier(ident)
     }
-    
+
     /// Skip whitespace characters
     fn skip_whitespace(&mut self) {
         while let Some(ch) = self.peek() {
@@ -262,23 +262,23 @@ impl<'a> Tokenizer<'a> {
             }
         }
     }
-    
+
     /// Peek at the next character without consuming it
     fn peek(&mut self) -> Option<char> {
         self.input.peek().copied()
     }
-    
+
     /// Peek at the character after the next one
     fn peek_next(&mut self) -> Option<char> {
         let mut iter = self.input.clone();
         iter.next(); // Skip current
         iter.next() // Get next
     }
-    
+
     /// Advance to the next character
     fn advance(&mut self) -> Option<char> {
         let ch = self.input.next();
-        if let Some(ch) = ch {
+        if let Some(_ch) = ch {
             self.column += 1;
         }
         ch

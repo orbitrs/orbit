@@ -13,7 +13,7 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// Re-export of common types for convenience
 pub mod prelude {
     pub use crate::component::{Component, Props};
-    pub use crate::events::EventHandler;
+    pub use crate::events::EventEmitter;
     pub use crate::renderer::Renderer;
     pub use crate::state::State;
 }
