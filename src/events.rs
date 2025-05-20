@@ -7,16 +7,24 @@ use std::{
 };
 
 /// A type-erased event that can be sent through the event system
-pub trait Event: Any + Send + Sync {}
+pub trait Event: Any + Send + Sync {
+    fn as_any(&self) -> &dyn Any;
+}
+
+impl<T: Any + Send + Sync> Event for T {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
 
 /// Event handler function type
-pub type EventHandlerFn = Box<dyn Fn(&dyn Event) + Send + Sync>;
+pub type EventListenerFn = Box<dyn Fn(&dyn Event) + Send + Sync>;
 
 /// Manages event listeners and event dispatch
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct EventEmitter {
     /// Maps event types to their handlers
-    handlers: Arc<Mutex<HashMap<TypeId, Vec<EventHandlerFn>>>>,
+    handlers: Arc<Mutex<HashMap<TypeId, Vec<EventListenerFn>>>>,
 }
 
 impl EventEmitter {
@@ -32,8 +40,8 @@ impl EventEmitter {
         let mut handlers = self.handlers.lock().unwrap();
         let type_id = TypeId::of::<E>();
         
-        let handler: EventHandlerFn = Box::new(move |event| {
-            if let Some(e) = event.downcast_ref::<E>() {
+        let handler: EventListenerFn = Box::new(move |event| {
+            if let Some(e) = event.as_any().downcast_ref::<E>() {
                 handler(e);
             }
         });
@@ -184,20 +192,20 @@ impl Clone for CustomEvent {
 }
 
 /// Event handler trait for UI events
-pub trait EventHandler<E> {
+pub trait Handler<E> {
     /// Handle an event
     fn handle(&mut self, event: &E);
 }
 
 /// Function-based event handler
-pub struct EventHandlerFn<E, F: FnMut(&E)> {
+pub struct HandlerFn<E, F: FnMut(&E)> {
     /// The handler function
     handler: F,
     /// Phantom data for event type
     _phantom: std::marker::PhantomData<E>,
 }
 
-impl<E, F: FnMut(&E)> EventHandlerFn<E, F> {
+impl<E, F: FnMut(&E)> HandlerFn<E, F> {
     /// Create a new function-based event handler
     pub fn new(handler: F) -> Self {
         Self {
@@ -207,7 +215,7 @@ impl<E, F: FnMut(&E)> EventHandlerFn<E, F> {
     }
 }
 
-impl<E, F: FnMut(&E)> EventHandler<E> for EventHandlerFn<E, F> {
+impl<E, F: FnMut(&E)> Handler<E> for HandlerFn<E, F> {
     fn handle(&mut self, event: &E) {
         (self.handler)(event);
     }
@@ -215,12 +223,12 @@ impl<E, F: FnMut(&E)> EventHandler<E> for EventHandlerFn<E, F> {
 
 /// Vector of event handlers for a specific event type
 #[derive(Default)]
-pub struct EventDispatcher<Event> {
+pub struct Dispatcher<E> {
     /// List of event handlers
-    handlers: Vec<Box<dyn EventHandler<Event>>>,
+    handlers: Vec<Box<dyn Handler<E>>>,
 }
 
-impl<Event> EventDispatcher<Event> {
+impl<E> Dispatcher<E> {
     /// Create a new event dispatcher
     pub fn new() -> Self {
         Self {
@@ -229,12 +237,12 @@ impl<Event> EventDispatcher<Event> {
     }
 
     /// Add a new event handler
-    pub fn add_handler<H: EventHandler<Event> + 'static>(&mut self, handler: H) {
+    pub fn add_handler<H: Handler<E> + 'static>(&mut self, handler: H) {
         self.handlers.push(Box::new(handler));
     }
 
     /// Dispatch an event to all handlers
-    pub fn dispatch(&mut self, event: &Event) {
+    pub fn dispatch(&mut self, event: &E) {
         for handler in &mut self.handlers {
             handler.handle(event);
         }
