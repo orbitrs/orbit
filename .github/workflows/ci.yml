@@ -90,17 +90,17 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            . -> target
+            orbit -> orbit/target
             
       - name: Check code formatting
         run: |
           echo "Formatting orbit..."
-          cargo fmt --manifest-path=orbit/Cargo.toml --check
+          cd orbit && cargo fmt --check
         
       - name: Run clippy
         run: |
           echo "Running clippy on orbit..."
-          cargo clippy --manifest-path=orbit/Cargo.toml --all-targets --all-features -- -D warnings
+          cd orbit && cargo clippy --all-targets --all-features -- -D warnings
 
   test:
     name: Test
@@ -171,12 +171,12 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            . -> target
+            orbit -> orbit/target
 
       - name: Run tests
         run: |
           echo "Running tests for orbit..."
-          cargo test --manifest-path=orbit/Cargo.toml --all-features
+          cd orbit && cargo test --all-features
 
   build:
     name: Build
@@ -247,9 +247,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: |
-            . -> target
+            orbit -> orbit/target
 
       - name: Build in release mode
         run: |
           echo "Building orbit in release mode..."
-          cargo build --manifest-path=orbit/Cargo.toml --release
+          cd orbit && cargo build --release
