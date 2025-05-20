@@ -44,21 +44,41 @@ jobs:
       - name: Setup workspace
         working-directory: workspace
         run: |
-          # Verify package names
-          # First ensure each package has the correct name in its Cargo.toml
+          # First update dependencies to use local paths
+          sed -i.bak -E 's#orbit = \{ git = "https://github.com/orbitrs/orbit.git"(, [^}]*)? \}#orbit = { path = "./orbit" }#' orbiton/Cargo.toml
+          sed -i.bak -E 's#orbit-analyzer = \{ git = "https://github.com/orbitrs/orbit-analyzer.git"(, [^}]*)? \}#orbit-analyzer = { path = "./orbit-analyzer" }#' orbiton/Cargo.toml
+          
+          # Before proceeding, verify each package has the correct name
           echo "Verifying package names..."
           
-          # Update dependencies to use local paths
-          sed -i.bak -E 's#orbit = \{ git = "https://github.com/orbitrs/orbit.git"(, [^}]*)? \}#orbit = { path = "../orbit" }#' orbiton/Cargo.toml
-          sed -i.bak -E 's#orbit-analyzer = \{ git = "https://github.com/orbitrs/orbit-analyzer.git"(, [^}]*)? \}#orbit-analyzer = { path = "../orbit-analyzer" }#' orbiton/Cargo.toml
+          echo "Checking package names in each Cargo.toml..."
           
-          # Verify the package names are correct
-          echo "Checking package name in orbit/Cargo.toml..."
-          [ "$(grep '^name = "orbit"' orbit/Cargo.toml)" ] || exit 1
-          echo "Checking package name in orbiton/Cargo.toml..."
-          [ "$(grep '^name = "orbiton"' orbiton/Cargo.toml)" ] || exit 1
-          echo "Checking package name in orbit-analyzer/Cargo.toml..."
-          [ "$(grep '^name = "orbit-analyzer"' orbit-analyzer/Cargo.toml)" ] || exit 1
+          for pkg in orbit orbiton orbit-analyzer; do
+            if [ ! -f "$pkg/Cargo.toml" ]; then
+              echo "Error: $pkg/Cargo.toml not found"
+              exit 1
+            fi
+            
+            case "$pkg" in
+              "orbit")
+                expected_name="orbit"
+                ;;
+              "orbiton")
+                expected_name="orbiton"
+                ;;
+              "orbit-analyzer")
+                expected_name="orbit-analyzer"
+                ;;
+            esac
+            
+            if ! grep -q "^name = \"$expected_name\"" "$pkg/Cargo.toml"; then
+              echo "Error: Package $pkg does not have expected name '$expected_name' in Cargo.toml"
+              exit 1
+            fi
+            echo "✓ $pkg package name verified"
+          done
+          
+          echo "All package names verified successfully"
 
           # Create workspace Cargo.toml
           cat > Cargo.toml << 'EOFCARGO'
@@ -144,9 +164,41 @@ jobs:
       - name: Setup workspace
         working-directory: workspace
         run: |
-          # Update dependencies to use local paths
-          sed -i.bak 's#orbit = { git = "https://github.com/orbitrs/orbit.git" }#orbit = { path = "../orbit" }#' orbiton/Cargo.toml
-          sed -i.bak 's#orbit-analyzer = { git = "https://github.com/orbitrs/orbit-analyzer.git" }#orbit-analyzer = { path = "../orbit-analyzer" }#' orbiton/Cargo.toml
+          # First update dependencies to use local paths
+          sed -i.bak -E 's#orbit = \{ git = "https://github.com/orbitrs/orbit.git"(, [^}]*)? \}#orbit = { path = "./orbit" }#' orbiton/Cargo.toml
+          sed -i.bak -E 's#orbit-analyzer = \{ git = "https://github.com/orbitrs/orbit-analyzer.git"(, [^}]*)? \}#orbit-analyzer = { path = "./orbit-analyzer" }#' orbiton/Cargo.toml
+          
+          # Before proceeding, verify each package has the correct name
+          echo "Verifying package names..."
+          
+          echo "Checking package names in each Cargo.toml..."
+          
+          for pkg in orbit orbiton orbit-analyzer; do
+            if [ ! -f "$pkg/Cargo.toml" ]; then
+              echo "Error: $pkg/Cargo.toml not found"
+              exit 1
+            fi
+            
+            case "$pkg" in
+              "orbit")
+                expected_name="orbit"
+                ;;
+              "orbiton")
+                expected_name="orbiton"
+                ;;
+              "orbit-analyzer")
+                expected_name="orbit-analyzer"
+                ;;
+            esac
+            
+            if ! grep -q "^name = \"$expected_name\"" "$pkg/Cargo.toml"; then
+              echo "Error: Package $pkg does not have expected name '$expected_name' in Cargo.toml"
+              exit 1
+            fi
+            echo "✓ $pkg package name verified"
+          done
+          
+          echo "All package names verified successfully"
 
           # Create workspace Cargo.toml
           cat > Cargo.toml << 'EOFCARGO'
@@ -228,9 +280,41 @@ jobs:
       - name: Setup workspace
         working-directory: workspace
         run: |
-          # Update dependencies to use local paths
-          sed -i.bak 's#orbit = { git = "https://github.com/orbitrs/orbit.git" }#orbit = { path = "../orbit" }#' orbiton/Cargo.toml
-          sed -i.bak 's#orbit-analyzer = { git = "https://github.com/orbitrs/orbit-analyzer.git" }#orbit-analyzer = { path = "../orbit-analyzer" }#' orbiton/Cargo.toml
+          # First update dependencies to use local paths
+          sed -i.bak -E 's#orbit = \{ git = "https://github.com/orbitrs/orbit.git"(, [^}]*)? \}#orbit = { path = "./orbit" }#' orbiton/Cargo.toml
+          sed -i.bak -E 's#orbit-analyzer = \{ git = "https://github.com/orbitrs/orbit-analyzer.git"(, [^}]*)? \}#orbit-analyzer = { path = "./orbit-analyzer" }#' orbiton/Cargo.toml
+          
+          # Before proceeding, verify each package has the correct name
+          echo "Verifying package names..."
+          
+          echo "Checking package names in each Cargo.toml..."
+          
+          for pkg in orbit orbiton orbit-analyzer; do
+            if [ ! -f "$pkg/Cargo.toml" ]; then
+              echo "Error: $pkg/Cargo.toml not found"
+              exit 1
+            fi
+            
+            case "$pkg" in
+              "orbit")
+                expected_name="orbit"
+                ;;
+              "orbiton")
+                expected_name="orbiton"
+                ;;
+              "orbit-analyzer")
+                expected_name="orbit-analyzer"
+                ;;
+            esac
+            
+            if ! grep -q "^name = \"$expected_name\"" "$pkg/Cargo.toml"; then
+              echo "Error: Package $pkg does not have expected name '$expected_name' in Cargo.toml"
+              exit 1
+            fi
+            echo "✓ $pkg package name verified"
+          done
+          
+          echo "All package names verified successfully"
 
           # Create workspace Cargo.toml
           cat > Cargo.toml << 'EOFCARGO'
@@ -275,3 +359,4 @@ jobs:
       - name: Build release
         working-directory: workspace
         run: cargo build --release
+
