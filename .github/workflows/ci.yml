@@ -1,0 +1,11 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    uses: orbitrs/orbit-workflows/.github/workflows/reusable/rust-build.yml@main
