@@ -205,18 +205,6 @@ mod tests {
         assert_eq!(double.get(), 42);
     }
 }
-        self.subscribers.push(callback);
-    }
-}
-
-impl<T: Clone + 'static> Clone for SimpleState<T> {
-    fn clone(&self) -> Self {
-        Self {
-            value: self.value.clone(),
-            subscribers: Vec::new(), // Subscribers are not cloned
-        }
-    }
-}
 
 /// Errors that can occur in state operations
 #[derive(Debug, thiserror::Error)]
