@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod tests {
-    use crate::style::{CssProperty, CssSelector, Specificity, StyleRule, Stylesheet};
+    use crate::style::{CssSelector, Specificity, StyleRule, Stylesheet};
 
     #[test]
     fn test_specificity_calculation() {
