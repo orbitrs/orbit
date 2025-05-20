@@ -53,8 +53,8 @@ pub trait Component: 'static {
     fn events(&self) -> &EventEmitter;
 }
 
-/// Marker trait for component properties with default implementation
-pub trait Props: Default + 'static {}
+/// Props trait for component properties
+pub trait Props: 'static + Clone {}
 
 /// A virtual DOM node representing the component's rendered output
 #[derive(Debug, Clone)]
@@ -74,6 +74,15 @@ pub enum Node {
         instance: Arc<Mutex<Box<dyn Component>>>,
     },
 }
+
+/// A type-erased component instance
+pub struct AnyComponent {
+    /// The underlying component instance
+    instance: Arc<Mutex<Box<dyn Component<Props = Box<dyn Props>>>>>,
+}
+
+/// Component factory type
+type ComponentFactory = Box<dyn Fn(Context) -> Box<dyn Component<Props = Box<dyn Props>>>>;
 
 /// Component context providing access to framework features
 #[derive(Clone)]
@@ -107,8 +116,6 @@ pub struct ComponentRegistry {
     // Maps component names to their factory functions
     components: HashMap<TypeId, ComponentFactory>,
 }
-
-type ComponentFactory = Box<dyn Fn(Context) -> Box<dyn Component>>;
 
 impl ComponentRegistry {
     /// Create a new component registry

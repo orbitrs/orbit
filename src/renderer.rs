@@ -2,12 +2,20 @@
 
 use crate::{
     component::Node,
-    events::{MouseButton, MouseEvent, MouseEventType},
+    events::MouseEvent,
     style::Style,
 };
 use skia_safe::{
-    gpu::{DirectContext, SurfaceOrigin},
-    Color, Paint, Path, Surface,
+    gpu        let surface = Surface::new_render_target(
+            context,
+            skia_safe::gpu::Budgeted::Yes,
+            &info,
+            None,
+            SurfaceOrigin::TopLeft,
+            None,
+            false,
+        )Context, SurfaceOrigin, Budgeted},
+    Color, Paint, Surface,
 };
 use std::{collections::HashMap, sync::Arc};
 
@@ -164,7 +172,7 @@ impl SkiaRenderer {
 
         let surface = Surface::new_render_target(
             context,
-            skia_safe::Budgeted::Yes,
+            Budgeted::Yes,
             &info,
             None,
             SurfaceOrigin::TopLeft,

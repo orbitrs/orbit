@@ -200,6 +200,53 @@ impl Stylesheet {
     }
 }
 
+/// Style properties for a UI element
+#[derive(Debug, Clone, Default)]
+pub struct Style {
+    /// Background color
+    pub background_color: Option<String>,
+    /// Text color
+    pub color: Option<String>,
+    /// Font family
+    pub font_family: Option<String>,
+    /// Font size in pixels
+    pub font_size: Option<f32>,
+    /// Font weight (normal, bold, etc)
+    pub font_weight: Option<String>,
+    /// Padding in pixels (top, right, bottom, left)
+    pub padding: Option<(f32, f32, f32, f32)>,
+    /// Margin in pixels (top, right, bottom, left)
+    pub margin: Option<(f32, f32, f32, f32)>,
+    /// Border width in pixels
+    pub border_width: Option<f32>,
+    /// Border color
+    pub border_color: Option<String>,
+    /// Border radius in pixels
+    pub border_radius: Option<f32>,
+    /// Width in pixels or percentage
+    pub width: Option<String>,
+    /// Height in pixels or percentage
+    pub height: Option<String>,
+}
+
+impl Style {
+    /// Create a new empty style
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Apply another style on top of this one
+    pub fn merge(&mut self, other: &Style) {
+        if let Some(color) = &other.color {
+            self.color = Some(color.clone());
+        }
+        if let Some(bg) = &other.background_color {
+            self.background_color = Some(bg.clone());
+        }
+        // Merge other properties...
+    }
+}
+
 /// Errors that can occur in styling operations
 #[derive(Debug, thiserror::Error)]
 pub enum StyleError {

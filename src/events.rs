@@ -183,13 +183,44 @@ impl Clone for CustomEvent {
     }
 }
 
-/// Event dispatcher
-pub struct EventDispatcher {
-    /// Event handlers
+/// Event handler trait for UI events
+pub trait EventHandler<E> {
+    /// Handle an event
+    fn handle(&mut self, event: &E);
+}
+
+/// Function-based event handler
+pub struct EventHandlerFn<E, F: FnMut(&E)> {
+    /// The handler function
+    handler: F,
+    /// Phantom data for event type
+    _phantom: std::marker::PhantomData<E>,
+}
+
+impl<E, F: FnMut(&E)> EventHandlerFn<E, F> {
+    /// Create a new function-based event handler
+    pub fn new(handler: F) -> Self {
+        Self {
+            handler,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+}
+
+impl<E, F: FnMut(&E)> EventHandler<E> for EventHandlerFn<E, F> {
+    fn handle(&mut self, event: &E) {
+        (self.handler)(event);
+    }
+}
+
+/// Vector of event handlers for a specific event type
+#[derive(Default)]
+pub struct EventDispatcher<Event> {
+    /// List of event handlers
     handlers: Vec<Box<dyn EventHandler<Event>>>,
 }
 
-impl EventDispatcher {
+impl<Event> EventDispatcher<Event> {
     /// Create a new event dispatcher
     pub fn new() -> Self {
         Self {
@@ -197,21 +228,15 @@ impl EventDispatcher {
         }
     }
 
-    /// Add an event handler
+    /// Add a new event handler
     pub fn add_handler<H: EventHandler<Event> + 'static>(&mut self, handler: H) {
         self.handlers.push(Box::new(handler));
     }
 
-    /// Dispatch an event
-    pub fn dispatch(&mut self, event: Event) {
+    /// Dispatch an event to all handlers
+    pub fn dispatch(&mut self, event: &Event) {
         for handler in &mut self.handlers {
-            handler.handle(event.clone());
+            handler.handle(event);
         }
-    }
-}
-
-impl Default for EventDispatcher {
-    fn default() -> Self {
-        Self::new()
     }
 }
