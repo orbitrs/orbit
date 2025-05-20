@@ -6,15 +6,8 @@ use crate::{
     style::Style,
 };
 use skia_safe::{
-    gpu        let surface = Surface::new_render_target(
-            context,
-            skia_safe::gpu::Budgeted::Yes,
-            &info,
-            None,
-            SurfaceOrigin::TopLeft,
-            None,
-            false,
-        )Context, SurfaceOrigin, Budgeted},
+    gpu::{Context, Budgeted},
+    SurfaceOrigin,
     Color, Paint, Surface,
 };
 use std::{collections::HashMap, sync::Arc};
