@@ -8,6 +8,4 @@ on:
 
 jobs:
   ci:
-    uses: orbitrs/orbit-workflows/.github/workflows/reusable/rust-ci.yml@main
-    with:
-      cross-platform: true
+    uses: orbitrs/orbit-workflows/.github/workflows/rust-ci.yml@main
