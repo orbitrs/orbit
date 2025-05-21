@@ -4,6 +4,23 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
+  workflow_dispatch:
+    inputs:
+      publish-crate:
+        description: 'Whether to publish to crates.io'
+        required: false
+        type: boolean
+        default: false
+      build-docs:
+        description: 'Whether to build and publish documentation'
+        required: false
+        type: boolean
+        default: false
+      cross-platform-artifacts:
+        description: 'Whether to build artifacts for multiple platforms'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
