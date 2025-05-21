@@ -54,14 +54,14 @@ pub mod web {
 pub mod desktop {
     use super::PlatformAdapter;
     use crate::renderer::{Renderer, RendererType};
-    
+
     // Import glutin directly
+    use glium::Surface;
+    use glutin::dpi::LogicalSize;
     use glutin::event::{Event, WindowEvent};
     use glutin::event_loop::{ControlFlow, EventLoop};
     use glutin::window::WindowBuilder;
-    use glutin::dpi::LogicalSize;
     use glutin::ContextBuilder;
-    use glium::Surface;
 
     /// Desktop platform adapter
     pub struct DesktopAdapter {

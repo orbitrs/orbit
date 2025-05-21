@@ -26,13 +26,13 @@ pub enum RendererType {
 pub trait Renderer: Send + 'static {
     /// Initialize the renderer
     fn init(&mut self) -> Result<(), crate::Error>;
-    
+
     /// Render content
     fn render(&mut self, content: String) -> Result<(), crate::Error>;
-    
+
     /// Flush rendered content to screen
     fn flush(&mut self) -> Result<(), crate::Error>;
-    
+
     /// Clean up resources
     fn cleanup(&mut self) -> Result<(), crate::Error>;
 }
@@ -60,7 +60,7 @@ pub fn create_renderer(renderer_type: RendererType) -> Box<dyn Renderer> {
                 #[cfg(not(feature = "web"))]
                 panic!("No supported renderer for web platform in this build");
             }
-            
+
             #[cfg(not(target_arch = "wasm32"))]
             {
                 Box::new(SkiaRenderer::new())
@@ -86,15 +86,15 @@ impl Renderer for WebGLRenderer {
     fn init(&mut self) -> Result<(), crate::Error> {
         Ok(())
     }
-    
+
     fn render(&mut self, _content: String) -> Result<(), crate::Error> {
         Ok(())
     }
-    
+
     fn flush(&mut self) -> Result<(), crate::Error> {
         Ok(())
     }
-    
+
     fn cleanup(&mut self) -> Result<(), crate::Error> {
         Ok(())
     }
@@ -106,40 +106,40 @@ impl Renderer for SkiaRenderer {
         self.init_skia(800, 600)
             .map_err(|e| crate::Error::Renderer(format!("Failed to initialize Skia: {}", e)))
     }
-    
+
     fn render(&mut self, _content: String) -> Result<(), crate::Error> {
         // Get the state or return error
         let state = match &mut self.state {
             Some(state) => state,
             None => return Err(crate::Error::Renderer("Renderer not initialized".into())),
         };
-        
+
         // Clear the canvas with a light gray color
         let canvas = state.surface.canvas();
         canvas.clear(skia_safe::Color4f::new(0.9, 0.9, 0.9, 1.0));
-        
+
         // TODO: Implement actual rendering of the content
-        
+
         Ok(())
     }
-    
+
     fn flush(&mut self) -> Result<(), crate::Error> {
         // Get the state or return error
         let state = match &mut self.state {
             Some(state) => state,
             None => return Err(crate::Error::Renderer("Renderer not initialized".into())),
         };
-        
+
         // Flush the GPU context only - Surface doesn't have a flush method in this version
         state.gr_context.flush(None);
-        
+
         Ok(())
     }
-    
+
     fn cleanup(&mut self) -> Result<(), crate::Error> {
         // Reset state to release resources
         self.state = None;
-        
+
         Ok(())
     }
 }

@@ -2,8 +2,8 @@
 use std::{error::Error, fmt, sync::Arc};
 
 use skia_safe::{
-    gpu::{gl::Interface, BackendRenderTarget, DirectContext, SurfaceOrigin, Protected},
     gpu::gl::FramebufferInfo,
+    gpu::{gl::Interface, BackendRenderTarget, DirectContext, Protected, SurfaceOrigin},
     ColorType, Surface, M44,
 };
 
@@ -107,7 +107,7 @@ impl SkiaRenderer {
 
         // Create a framebuffer info struct for GL backend
         let fb_info = FramebufferInfo {
-            fboid: 0, // Use the default framebuffer
+            fboid: 0,       // Use the default framebuffer
             format: 0x8058, // GL_RGBA8 format
             protected: Protected::No,
         };
