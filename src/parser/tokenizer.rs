@@ -107,7 +107,7 @@ impl<'a> Tokenizer<'a> {
                             break;
                         }
                     }
-                    return Token::AttrName(name);
+                    Token::AttrName(name)
                 }
                 '=' => {
                     self.advance();
