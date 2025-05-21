@@ -139,45 +139,29 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            sudo apt-get update
-            sudo apt-get install -y gcc-aarch64-linux-gnu
+            # Use cross for Linux ARM64 builds instead of system packages
+            cargo install cross
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
             echo "macOS runners on GitHub Actions have built-in support for ARM64"
           elif [ "${{ matrix.os }}" = "windows-latest" ]; then
             echo "Using MSVC cross-compiler for Windows ARM64"
           fi
         
-      - name: Install system dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Install system dependencies (Linux x86_64 only)
+        if: matrix.os == 'ubuntu-latest' && !contains(matrix.target, 'aarch64')
         shell: bash
         run: |
           sudo apt-get update
-          
-          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-            # Install ARM64 dependencies
-            sudo dpkg --add-architecture arm64
-            sudo apt-get update
-            sudo apt-get install -y \
-              libfontconfig1-dev:arm64 \
-              libfreetype6-dev:arm64
-          else
-            # Install regular x86_64 dependencies
-            sudo apt-get install -y \
-              libfontconfig1-dev \
-              libfreetype6-dev
-          fi
-          
-      - name: Install cargo-zigbuild for Linux ARM64
-        if: matrix.target == 'aarch64-unknown-linux-gnu'
-        run: |
-          cargo install cargo-zigbuild
+          sudo apt-get install -y \
+            libfontconfig1-dev \
+            libfreetype6-dev
           
       - name: Build release
         shell: bash
         run: |
           if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-            # Use zigbuild for Linux ARM64
-            cargo zigbuild --release --target ${{ matrix.target }}
+            # Use cross for Linux ARM64
+            cross build --release --target ${{ matrix.target }}
           else
             # Use standard cargo build for other targets
             cargo build --release --target ${{ matrix.target }}
