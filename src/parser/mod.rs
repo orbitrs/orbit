@@ -118,6 +118,7 @@ enum Section {
 }
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct Sections {
     template: String,
     style: String,

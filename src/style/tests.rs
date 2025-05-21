@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(clippy::module_inception)]
 mod tests {
     use crate::style::{CssSelector, Specificity, StyleRule, Stylesheet};
 
@@ -47,7 +48,7 @@ mod tests {
         let first_rule = &stylesheet.rules[0];
         assert_eq!(first_rule.selectors[0].selector, ".button");
         assert_eq!(first_rule.selectors[0].properties.len(), 2);
-        assert_eq!(first_rule.scoped, true);
+        assert!(first_rule.scoped);
     }
 
     #[test]

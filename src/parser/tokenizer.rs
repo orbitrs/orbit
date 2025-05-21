@@ -5,6 +5,7 @@ use std::str::Chars;
 
 /// Token types that can appear in a template
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum Token {
     // Template tokens
     OpenTag(String),
@@ -43,7 +44,7 @@ pub enum Token {
     String(String),
 
     // Special
-    EOF,
+    Eof,
     Error(String),
 }
 
@@ -69,7 +70,7 @@ impl<'a> Tokenizer<'a> {
         self.skip_whitespace();
 
         match self.peek() {
-            None => Token::EOF,
+            None => Token::Eof,
             Some(ch) => match ch {
                 '<' => self.read_tag(),
                 '{' => {

@@ -9,13 +9,17 @@ use std::{
 // Define a type alias for the complex subscriber type
 type SubscriberCallback = Box<dyn Fn() + Send + Sync>;
 type SubscriberMap = HashMap<TypeId, Vec<SubscriberCallback>>;
+// Define a type for the complex state value container
+type StateValue = Arc<Mutex<dyn std::any::Any + Send + Sync>>;
+type StateMap = HashMap<TypeId, StateValue>;
 
 /// State management for Orbit applications
 #[derive(Clone)]
 pub struct StateContainer {
     // Using Arc<Mutex<>> for thread-safe interior mutability
     // TypeId is used to identify the type of the stored value
-    values: Arc<Mutex<HashMap<TypeId, Arc<Mutex<dyn std::any::Any + Send + Sync>>>>>,
+    #[allow(clippy::type_complexity)]
+    values: Arc<Mutex<StateMap>>,
     // Subscribers are functions that are called when a value changes
     // Using Arc<Mutex<>> for thread-safe interior mutability
     pub(crate) subscribers: Arc<Mutex<SubscriberMap>>,
@@ -146,6 +150,7 @@ pub struct Computed<T> {
     type_id: TypeId,
 
     /// Compute function
+    #[allow(dead_code)]
     compute: Arc<Box<dyn Fn() -> T + Send + Sync>>,
 
     /// Dependencies

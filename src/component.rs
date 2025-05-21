@@ -90,6 +90,12 @@ pub struct Context {
     events: EventEmitter,
 }
 
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Context {
     /// Create a new context
     pub fn new() -> Self {
@@ -111,6 +117,7 @@ impl Context {
 }
 
 /// A node in the UI tree
+#[allow(dead_code)]
 pub struct Node {
     /// Component instance
     component: Option<ComponentInstance>,

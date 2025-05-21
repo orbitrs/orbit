@@ -82,7 +82,7 @@ impl<'a> TemplateParser<'a> {
                 Token::OpenTag(child_tag) => {
                     children.push(self.parse_element(child_tag)?);
                 }
-                Token::EOF => return Err("Unexpected end of template".to_string()),
+                Token::Eof => return Err("Unexpected end of template".to_string()),
                 token => return Err(format!("Unexpected token: {:?}", token)),
             }
         }
@@ -113,7 +113,7 @@ impl<'a> TemplateParser<'a> {
                 Token::OpenParen => expr.push('('),
                 Token::CloseParen => expr.push(')'),
                 Token::Comma => expr.push(','),
-                Token::EOF => return Err("Unclosed expression".to_string()),
+                Token::Eof => return Err("Unclosed expression".to_string()),
                 token => return Err(format!("Unexpected token in expression: {:?}", token)),
             }
         }

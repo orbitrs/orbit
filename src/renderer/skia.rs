@@ -4,7 +4,7 @@ use std::{error::Error, fmt, sync::Arc};
 use skia_safe::{
     gpu::gl::FramebufferInfo,
     gpu::{gl::Interface, BackendRenderTarget, DirectContext, Protected, SurfaceOrigin},
-    Color, Color4f, ColorType, Paint, PaintStyle, Surface, M44,
+    Color, Color4f, ColorType, Paint, Surface, M44,
 };
 
 use crate::component::Node;
@@ -62,6 +62,7 @@ pub(crate) struct SkiaState {
     pub(crate) surface: Surface,
 
     /// Current transform stack
+    #[allow(dead_code)]
     pub(crate) transform_stack: Vec<M44>,
 
     /// Current width
@@ -150,6 +151,7 @@ impl SkiaRenderer {
     }
 
     /// Push a transform onto the stack
+    #[allow(dead_code)]
     fn push_transform(&mut self, transform: M44) {
         if let Some(state) = &mut self.state {
             let current = state
@@ -166,6 +168,7 @@ impl SkiaRenderer {
     }
 
     /// Pop transform from the stack
+    #[allow(dead_code)]
     fn pop_transform(&mut self) {
         if let Some(state) = &mut self.state {
             if state.transform_stack.len() > 1 {
@@ -175,6 +178,7 @@ impl SkiaRenderer {
     }
 
     /// Get current transform
+    #[allow(dead_code)]
     fn current_transform(&self) -> M44 {
         self.state
             .as_ref()

@@ -144,11 +144,10 @@ impl Renderer for SkiaRenderer {
         // Draw an animated circle if time is provided, otherwise a static one
         if time > 0.0 {
             self.draw_animated_circle(time);
-            return Ok(());
+            Ok(())
         } else {
-            return self
-                .draw_test_circle()
-                .map_err(|e| crate::Error::Renderer(format!("Failed to draw test circle: {}", e)));
+            self.draw_test_circle()
+                .map_err(|e| crate::Error::Renderer(format!("Failed to draw test circle: {}", e)))
         }
     }
 
