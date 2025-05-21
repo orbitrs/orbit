@@ -257,7 +257,7 @@ pub mod desktop {
 
                         // Get the elapsed time for animation
                         let elapsed = self.start_time.elapsed().as_secs_f32();
-                        
+
                         // Create time-based content to render
                         let content = format!("{{\"time\": {}}}", elapsed);
 

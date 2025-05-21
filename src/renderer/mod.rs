@@ -122,19 +122,27 @@ impl Renderer for SkiaRenderer {
         let time = if content.contains("time") {
             // Very simple parser - in a real app we'd use serde_json
             let time_start = content.find(":").map(|pos| pos + 1).unwrap_or(0);
-            let time_end = content[time_start..].find("}").map(|pos| pos + time_start).unwrap_or(content.len());
-            content[time_start..time_end].trim().parse::<f32>().unwrap_or(0.0)
+            let time_end = content[time_start..]
+                .find("}")
+                .map(|pos| pos + time_start)
+                .unwrap_or(content.len());
+            content[time_start..time_end]
+                .trim()
+                .parse::<f32>()
+                .unwrap_or(0.0)
         } else {
             0.0
         };
 
         // Draw an animated circle if time is provided, otherwise a static one
         if time > 0.0 {
-            self.draw_animated_circle(time)
-                .map_err(|e| crate::Error::Renderer(format!("Failed to draw animated circle: {}", e)))?;
+            self.draw_animated_circle(time).map_err(|e| {
+                crate::Error::Renderer(format!("Failed to draw animated circle: {}", e))
+            })?;
         } else {
-            self.draw_test_circle()
-                .map_err(|e| crate::Error::Renderer(format!("Failed to draw test circle: {}", e)))?;
+            self.draw_test_circle().map_err(|e| {
+                crate::Error::Renderer(format!("Failed to draw test circle: {}", e))
+            })?;
         }
 
         Ok(())
