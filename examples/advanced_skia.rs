@@ -1,7 +1,5 @@
 // Advanced Skia test with custom rendering
-use orbit::platform::{PlatformAdapter, PlatformType};
-use orbit::renderer::{Renderer, RendererType};
-use std::time::{Duration, Instant};
+use orbit::platform::PlatformType;
 
 fn main() -> Result<(), orbit::Error> {
     // Create desktop adapter
