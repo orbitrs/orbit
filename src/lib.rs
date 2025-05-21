@@ -34,6 +34,9 @@ pub enum Error {
 
     #[error("Rendering error: {0}")]
     Render(String),
+    
+    #[error("Renderer error: {0}")]
+    Renderer(String),
 
     #[error("Component error: {0}")]
     Component(String),

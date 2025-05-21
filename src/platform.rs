@@ -16,7 +16,8 @@ pub trait PlatformAdapter {
 #[cfg(feature = "web")]
 pub mod web {
     use super::PlatformAdapter;
-    use wasm_bindgen::prelude::*;
+    // Remove unused import
+    // use wasm_bindgen::prelude::*;
 
     /// WebAssembly platform adapter
     pub struct WebAdapter {
@@ -53,13 +54,21 @@ pub mod web {
 pub mod desktop {
     use super::PlatformAdapter;
     use crate::renderer::{Renderer, RendererType};
+    
+    // Import glutin directly
+    use glutin::event::{Event, WindowEvent};
+    use glutin::event_loop::{ControlFlow, EventLoop};
+    use glutin::window::WindowBuilder;
+    use glutin::dpi::LogicalSize;
+    use glutin::ContextBuilder;
+    use glium::Surface;
 
     /// Desktop platform adapter
     pub struct DesktopAdapter {
         // Desktop-specific resources
         renderer: Box<dyn Renderer>,
-        window: Option<glium::Display>,
-        event_loop: Option<glium::glutin::event_loop::EventLoop<()>>,
+        window: Option<glium::Display<glutin::surface::WindowSurface>>,
+        event_loop: Option<EventLoop<()>>,
         running: bool,
     }
 
@@ -86,19 +95,16 @@ pub mod desktop {
 
         /// Initialize the window
         fn init_window(&mut self) -> Result<(), crate::Error> {
-            use glium::glutin;
-            use glium::Surface;
-
             // Create an event loop
-            let event_loop = glutin::event_loop::EventLoop::new();
+            let event_loop = EventLoop::new();
 
             // Window configuration
-            let window_builder = glutin::window::WindowBuilder::new()
+            let window_builder = WindowBuilder::new()
                 .with_title("Orbit UI Application")
-                .with_inner_size(glutin::dpi::LogicalSize::new(800.0, 600.0));
+                .with_inner_size(LogicalSize::new(800.0, 600.0));
 
             // Context configuration
-            let context_builder = glutin::ContextBuilder::new().with_vsync(true);
+            let context_builder = ContextBuilder::new().with_vsync(true);
 
             // Create a display (window + context)
             let display = glium::Display::new(window_builder, context_builder, &event_loop)
@@ -121,9 +127,6 @@ pub mod desktop {
         }
 
         fn run(&mut self) -> Result<(), crate::Error> {
-            use glium::glutin::event::{Event, WindowEvent};
-            use glium::glutin::event_loop::ControlFlow;
-
             // Set flag indicating we're running
             self.running = true;
 

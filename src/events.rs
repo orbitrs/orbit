@@ -67,7 +67,6 @@ impl EventEmitter {
 }
 
 /// Built-in event types
-
 /// Mouse event containing position and button information
 #[derive(Debug, Clone)]
 pub struct MouseEvent {

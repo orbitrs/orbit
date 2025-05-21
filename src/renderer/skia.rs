@@ -1,10 +1,10 @@
-//! Renderer implementation for the Orbit UI framework
-
+// Skia renderer implementation for the Orbit UI framework
 use std::{error::Error, fmt, sync::Arc};
 
 use skia_safe::{
-    gpu::{gl::Interface, Budgeted, SurfaceOrigin},
-    Surface, M44,
+    gpu::{gl::Interface, BackendRenderTarget, DirectContext, SurfaceOrigin, Protected},
+    gpu::gl::FramebufferInfo,
+    ColorType, Surface, M44,
 };
 
 use crate::component::Node;
@@ -53,35 +53,32 @@ impl Error for RendererError {}
 /// Result from renderer operations
 pub type RendererResult = Result<(), Box<dyn std::error::Error + Send>>;
 
-/// Thread-safe renderer interface
-pub trait Renderer: Send + 'static {
-    /// Handle a renderer message
-    fn handle_message(&mut self, msg: RendererMessage) -> RendererResult;
-}
-
-/// Skia renderer state  
-struct SkiaState {
+/// Skia renderer state
+pub(crate) struct SkiaState {
     /// Skia GPU context
-    gr_context: skia_safe::gpu::DirectContext,
+    pub(crate) gr_context: DirectContext,
 
     /// Skia render surface
-    surface: Surface,
+    pub(crate) surface: Surface,
 
     /// Current transform stack
-    transform_stack: Vec<M44>,
+    pub(crate) transform_stack: Vec<M44>,
 
     /// Current width
-    width: i32,
+    pub(crate) width: i32,
 
     /// Current height
-    height: i32,
+    pub(crate) height: i32,
 }
 
 /// Skia-based renderer implementation
 pub struct SkiaRenderer {
     /// Renderer state
-    state: Option<SkiaState>,
+    pub(crate) state: Option<SkiaState>,
 }
+
+// Explicitly implement Send for SkiaRenderer since we control the access to the state
+unsafe impl Send for SkiaRenderer {}
 
 impl SkiaRenderer {
     /// Create a new Skia renderer
@@ -90,7 +87,7 @@ impl SkiaRenderer {
     }
 
     /// Initialize Skia state
-    fn init_skia(&mut self, width: i32, height: i32) -> RendererResult {
+    pub(crate) fn init_skia(&mut self, width: i32, height: i32) -> RendererResult {
         // Create Skia GL interface
         let interface = Interface::new_native().ok_or_else(|| {
             let err: Box<dyn std::error::Error + Send> = Box::new(RendererError::GlError(
@@ -99,32 +96,40 @@ impl SkiaRenderer {
             err
         })?;
 
-        // Create Skia GPU context with proper error handling
-        let mut gr_context =
-            skia_safe::gpu::DirectContext::new_gl(interface, None).ok_or_else(|| {
-                let err: Box<dyn std::error::Error + Send> = Box::new(RendererError::SkiaError(
-                    "Failed to create GPU context".to_string(),
-                ));
-                err
-            })?;
+        // Create Skia GPU context - note the use of the recommended function
+        #[allow(deprecated)]
+        let mut gr_context = DirectContext::new_gl(interface, None).ok_or_else(|| {
+            let err: Box<dyn std::error::Error + Send> = Box::new(RendererError::SkiaError(
+                "Failed to create GPU context".to_string(),
+            ));
+            err
+        })?;
 
-        // Create image info for the surface
-        let image_info = skia_safe::ImageInfo::new(
+        // Create a framebuffer info struct for GL backend
+        let fb_info = FramebufferInfo {
+            fboid: 0, // Use the default framebuffer
+            format: 0x8058, // GL_RGBA8 format
+            protected: Protected::No,
+        };
+
+        // Create backend render target - note the use of the new API
+        #[allow(deprecated)]
+        let backend_render_target = BackendRenderTarget::new_gl(
             (width, height),
-            skia_safe::ColorType::RGBA8888,
-            skia_safe::AlphaType::Premul,
-            None,
+            1, // samples per pixel
+            8, // stencil bits
+            fb_info,
         );
 
-        // Create surface with proper error handling
-        let mut surface = Surface::new_render_target(
+        // Create surface - note the use of the recommended function
+        #[allow(deprecated)]
+        let surface = Surface::from_backend_render_target(
             &mut gr_context,
-            Budgeted::No,
-            &image_info,
-            None,
+            &backend_render_target,
             SurfaceOrigin::BottomLeft,
+            ColorType::RGBA8888,
             None,
-            false,
+            None,
         )
         .ok_or_else(|| {
             let err: Box<dyn std::error::Error + Send> = Box::new(RendererError::SkiaError(
