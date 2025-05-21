@@ -31,6 +31,12 @@ pub mod web {
         }
     }
 
+    impl Default for WebAdapter {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl PlatformAdapter for WebAdapter {
         fn init(&mut self) -> Result<(), crate::Error> {
             // Initialize web platform
@@ -209,6 +215,12 @@ pub mod desktop {
             self.event_loop = Some(event_loop);
 
             Ok(())
+        }
+    }
+
+    impl Default for DesktopAdapter {
+        fn default() -> Self {
+            Self::new()
         }
     }
 

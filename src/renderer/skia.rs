@@ -4,7 +4,7 @@ use std::{error::Error, fmt, sync::Arc};
 use skia_safe::{
     gpu::gl::FramebufferInfo,
     gpu::{gl::Interface, BackendRenderTarget, DirectContext, Protected, SurfaceOrigin},
-    ColorType, Surface, M44,
+    Color, Color4f, ColorType, Paint, PaintStyle, Surface, M44,
 };
 
 use crate::component::Node;
@@ -211,37 +211,32 @@ impl SkiaRenderer {
     }
 
     /// Draw an animated circle
-    pub fn draw_animated_circle(&mut self, time: f32) -> RendererResult {
-        let state = match &mut self.state {
-            Some(state) => state,
-            None => {
-                return Err(Box::new(RendererError::GeneralError(
-                    "Renderer not initialized".into(),
-                )))
-            }
-        };
+    pub fn draw_animated_circle(&mut self, time: f32) {
+        if let Some(state) = &mut self.state {
+            let canvas = &mut state.surface.canvas();
+            canvas.clear(Color::WHITE);
 
-        let canvas = state.surface.canvas();
+            let mut paint = Paint::new(Color4f::new(1.0, 0.0, 0.0, 1.0), None);
+            paint.set_anti_alias(true);
 
-        // Create a color that cycles with time
-        let r = (time.sin() * 0.5 + 0.5) as f32;
-        let g = ((time + 2.0).sin() * 0.5 + 0.5) as f32;
-        let b = ((time + 4.0).sin() * 0.5 + 0.5) as f32;
+            let r = time.sin() * 0.5 + 0.5;
+            let g = (time + 2.0).sin() * 0.5 + 0.5;
+            let b = (time + 4.0).sin() * 0.5 + 0.5;
+            // Create color from ARGB components
+            let a = 255;
+            let r_byte = (r * 255.0) as u8;
+            let g_byte = (g * 255.0) as u8;
+            let b_byte = (b * 255.0) as u8;
+            let color = Color::from_argb(a, r_byte, g_byte, b_byte);
+            paint.set_color(color);
 
-        let mut paint = skia_safe::Paint::new(skia_safe::Color4f::new(r, g, b, 1.0), None);
-        paint.set_anti_alias(true);
-        paint.set_style(skia_safe::PaintStyle::Fill);
+            canvas.draw_circle((200.0, 200.0), 100.0, &paint);
+        }
+    }
+}
 
-        // Draw a pulsing circle that moves in a figure-8 pattern
-        let center_x = state.width as f32 / 2.0 + (time.sin() * state.width as f32 / 4.0);
-        let center_y = state.height as f32 / 2.0 + (time * 2.0).sin() * state.height as f32 / 4.0;
-
-        // Pulsing radius
-        let base_radius = state.width.min(state.height) as f32 / 6.0;
-        let radius = base_radius + ((time * 3.0).sin() * base_radius * 0.2);
-
-        canvas.draw_circle(skia_safe::Point::new(center_x, center_y), radius, &paint);
-
-        Ok(())
+impl Default for SkiaRenderer {
+    fn default() -> Self {
+        Self::new()
     }
 }

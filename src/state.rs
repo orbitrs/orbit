@@ -6,14 +6,19 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-/// Container for managing application state
+// Define a type alias for the complex subscriber type
+type SubscriberCallback = Box<dyn Fn() + Send + Sync>;
+type SubscriberMap = HashMap<TypeId, Vec<SubscriberCallback>>;
+
+/// State management for Orbit applications
 #[derive(Clone)]
 pub struct StateContainer {
-    /// Map of state values by type ID
-    pub(crate) values: Arc<Mutex<HashMap<TypeId, Box<dyn std::any::Any + Send + Sync>>>>,
-
-    /// Map of subscribers by type ID
-    pub(crate) subscribers: Arc<Mutex<HashMap<TypeId, Vec<Box<dyn Fn() + Send + Sync>>>>>,
+    // Using Arc<Mutex<>> for thread-safe interior mutability
+    // TypeId is used to identify the type of the stored value
+    values: Arc<Mutex<HashMap<TypeId, Arc<Mutex<dyn std::any::Any + Send + Sync>>>>>,
+    // Subscribers are functions that are called when a value changes
+    // Using Arc<Mutex<>> for thread-safe interior mutability
+    pub(crate) subscribers: Arc<Mutex<SubscriberMap>>,
 }
 
 impl StateContainer {
@@ -29,11 +34,11 @@ impl StateContainer {
     pub fn create<T: 'static + Clone + Send + Sync>(&self, initial: T) -> State<T> {
         let type_id = TypeId::of::<T>();
 
-        // Store initial value
+        // Store initial value with the correct type (Arc<Mutex<>>)
         self.values
             .lock()
             .unwrap()
-            .insert(type_id, Box::new(initial.clone()));
+            .insert(type_id, Arc::new(Mutex::new(initial.clone())));
 
         State {
             container: self.clone(),
@@ -52,29 +57,29 @@ impl StateContainer {
         let initial = compute();
         let type_id = TypeId::of::<T>();
 
-        // Store initial value
+        // Store initial value with correct type
         self.values
             .lock()
             .unwrap()
-            .insert(type_id, Box::new(initial));
+            .insert(type_id, Arc::new(Mutex::new(initial)));
 
         Computed::new(self.clone(), compute, dependencies)
     }
 
     /// Subscribe to state changes
-    pub fn subscribe<F>(&self, type_id: TypeId, callback: F)
-    where
-        F: Fn() + Send + Sync + 'static,
-    {
+    pub fn subscribe<T: 'static + Send + Sync, F: Fn() + Send + Sync + 'static>(
+        &self,
+        callback: F,
+    ) {
+        let type_id = TypeId::of::<T>();
         let mut subscribers = self.subscribers.lock().unwrap();
-
         subscribers
             .entry(type_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push(Box::new(callback));
     }
 
-    /// Notify subscribers of state change
+    /// Notify subscribers of a change to a value
     pub fn notify(&self, type_id: TypeId) {
         let subscribers = self.subscribers.lock().unwrap();
 
@@ -86,7 +91,13 @@ impl StateContainer {
     }
 }
 
-/// Represents a state value that can be read and updated
+impl Default for StateContainer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Represents a reactive value that can be observed for changes
 pub struct State<T> {
     /// State container
     container: StateContainer,
@@ -105,8 +116,10 @@ impl<T: 'static + Clone + Send + Sync> State<T> {
 
         values
             .get(&self.type_id)
-            .and_then(|value| value.downcast_ref::<T>())
-            .cloned()
+            .and_then(|value| {
+                let lock = value.lock().unwrap();
+                lock.downcast_ref::<T>().cloned()
+            })
             .unwrap()
     }
 
@@ -117,7 +130,7 @@ impl<T: 'static + Clone + Send + Sync> State<T> {
             .values
             .lock()
             .unwrap()
-            .insert(self.type_id, Box::new(value));
+            .insert(self.type_id, Arc::new(Mutex::new(value)));
 
         // Notify subscribers
         self.container.notify(self.type_id);
@@ -160,21 +173,29 @@ impl<T: 'static + Clone + Send + Sync> Computed<T> {
         };
 
         // Subscribe to dependencies
-        for dep_id in computed.dependencies.iter() {
+        for &dep_id in computed.dependencies.iter() {
             // Clone Arc wrapper for each dependency
             let compute_fn = compute_arc.clone();
             let container_clone = container.clone();
             let type_id_clone = type_id;
 
-            container.subscribe(*dep_id, move || {
+            // Create a closure for this dependency
+            let callback = move || {
                 // Recompute value when dependency changes
                 let new_value = (*compute_fn)();
                 container_clone
                     .values
                     .lock()
                     .unwrap()
-                    .insert(type_id_clone, Box::new(new_value));
-            });
+                    .insert(type_id_clone, Arc::new(Mutex::new(new_value)));
+            };
+
+            // Add closure to subscribers for this dependency type
+            let mut subscribers = container.subscribers.lock().unwrap();
+            subscribers
+                .entry(dep_id)
+                .or_default()
+                .push(Box::new(callback));
         }
 
         computed
@@ -185,8 +206,10 @@ impl<T: 'static + Clone + Send + Sync> Computed<T> {
         let values = self.container.values.lock().unwrap();
         values
             .get(&self.type_id)
-            .and_then(|value| value.downcast_ref::<T>())
-            .cloned()
+            .and_then(|value| {
+                let lock = value.lock().unwrap();
+                lock.downcast_ref::<T>().cloned()
+            })
             .unwrap()
     }
 }

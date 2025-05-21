@@ -82,6 +82,13 @@ impl WebGLRenderer {
 }
 
 #[cfg(feature = "web")]
+impl Default for WebGLRenderer {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(feature = "web")]
 impl Renderer for WebGLRenderer {
     fn init(&mut self) -> Result<(), crate::Error> {
         Ok(())
@@ -136,16 +143,13 @@ impl Renderer for SkiaRenderer {
 
         // Draw an animated circle if time is provided, otherwise a static one
         if time > 0.0 {
-            self.draw_animated_circle(time).map_err(|e| {
-                crate::Error::Renderer(format!("Failed to draw animated circle: {}", e))
-            })?;
+            self.draw_animated_circle(time);
+            return Ok(());
         } else {
-            self.draw_test_circle().map_err(|e| {
-                crate::Error::Renderer(format!("Failed to draw test circle: {}", e))
-            })?;
+            return self
+                .draw_test_circle()
+                .map_err(|e| crate::Error::Renderer(format!("Failed to draw test circle: {}", e)));
         }
-
-        Ok(())
     }
 
     fn flush(&mut self) -> Result<(), crate::Error> {

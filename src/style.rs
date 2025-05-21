@@ -171,9 +171,10 @@ impl Stylesheet {
 
         Ok(stylesheet)
     }
+}
 
-    /// Convert the stylesheet to CSS text
-    pub fn to_string(&self) -> String {
+impl std::fmt::Display for Stylesheet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut result = String::new();
 
         for rule in &self.rules {
@@ -196,7 +197,7 @@ impl Stylesheet {
             }
         }
 
-        result
+        write!(f, "{}", result)
     }
 }
 
