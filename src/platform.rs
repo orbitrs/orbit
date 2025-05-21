@@ -56,8 +56,11 @@ pub mod desktop {
     use crate::renderer::{Renderer, RendererType};
 
     use glium::Surface;
-    use glutin::context::ContextBuilder;
+    use glutin::config::GlConfig;
+    use glutin::display::{GetGlDisplay, GlDisplay};
+    use glutin::context::NotCurrentGlContext;
     use glutin::surface::WindowSurface;
+    use glutin_winit::GlWindow;
     use winit::dpi::LogicalSize;
     use winit::event::{Event, WindowEvent};
     use winit::event_loop::{ControlFlow, EventLoop};
@@ -105,18 +108,74 @@ pub mod desktop {
                 .with_title("Orbit UI Application")
                 .with_inner_size(LogicalSize::new(800.0, 600.0));
 
-            // Context configuration
-            let context_builder = ContextBuilder::new()
-                .with_vsync(true)
-                .with_hardware_acceleration(Some(true));
+            // Create the basic config for glutin - using default sensible values
+            let template = glutin::config::ConfigTemplateBuilder::new()
+                .with_alpha_size(8)
+                .with_stencil_size(8)
+                .with_depth_size(24);
 
-            // Create a display using simplified API
-            let display = unsafe {
-                glutin_winit::finalize_display(window_builder, context_builder, &event_loop)
-                    .map_err(|e| {
-                        crate::Error::Platform(format!("Failed to create display: {}", e))
-                    })?
+            // Create a builder for the glutin-winit integration
+            let display_builder = glutin_winit::DisplayBuilder::new()
+                .with_window_builder(Some(window_builder));
+
+            // Build the configs with the event loop
+            let (mut window, gl_config) = display_builder
+                .build(&event_loop, template, |configs| {
+                    // Choose the config with the maximum number of samples
+                    configs.reduce(|accum, config| {
+                        let transparency_check = config.supports_transparency().unwrap_or(false)
+                            & !accum.supports_transparency().unwrap_or(false);
+
+                        if transparency_check || config.num_samples() > accum.num_samples() {
+                            config
+                        } else {
+                            accum
+                        }
+                    }).unwrap()
+                })
+                .map_err(|e| crate::Error::Platform(format!("Failed to build display: {:?}", e)))?;
+
+            // Set up the context attributes with defaults
+            let context_attribs = glutin::context::ContextAttributesBuilder::new().build(None);
+
+            // Create the surfaced context - this handles a lot of the compatibility issues
+            // and is safer than manually creating all the pieces
+            let (gl_context, gl_surface) = match window.take() {
+                Some(window) => {                    // No need to get window size, it's handled automatically by build_surface_attributes
+                    
+                    // Create the GL context
+                    let not_current_context = unsafe {
+                        gl_config.display()
+                            .create_context(&gl_config, &context_attribs)
+                            .map_err(|e| crate::Error::Platform(format!("Failed to create GL context: {:?}", e)))?
+                    };
+
+                    // Build surface attributes from the window
+                    let attrs = window
+                        .build_surface_attributes(<_>::default());
+
+                    // Create the surface from the window
+                    let surface = unsafe {
+                        gl_config.display()
+                            .create_window_surface(&gl_config, &attrs)
+                            .map_err(|e| crate::Error::Platform(format!("Failed to create window surface: {:?}", e)))?
+                    };
+
+                    // Make the context current with the surface
+                    let context = not_current_context
+                        .make_current(&surface)
+                        .map_err(|e| crate::Error::Platform(format!("Failed to make context current: {:?}", e)))?;
+
+                    (context, surface)
+                }
+                None => {
+                    return Err(crate::Error::Platform("Window creation failed".into()));
+                }
             };
+
+            // Create the glium display from the context and surface
+            let display = glium::Display::from_context_surface(gl_context, gl_surface)
+                .map_err(|e| crate::Error::Platform(format!("Failed to create Glium display: {:?}", e)))?;
 
             self.display = Some(display);
             self.event_loop = Some(event_loop);
