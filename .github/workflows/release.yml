@@ -195,6 +195,24 @@ jobs:
           key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-${{ matrix.target }}-
+            
+      - name: Configure Rust environment variables
+        shell: bash
+        run: |
+          # Configure Rust environment variables for better performance
+          echo "RUSTC_WRAPPER=sccache" >> $GITHUB_ENV
+          echo "CARGO_INCREMENTAL=0" >> $GITHUB_ENV
+          echo "SCCACHE_CACHE_SIZE=2G" >> $GITHUB_ENV
+          echo "SCCACHE_DIR=$HOME/.cache/sccache" >> $GITHUB_ENV
+          
+          # Platform-specific optimizations
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+            # On Linux, also use ramdisk if available
+            if [ -d "/dev/shm" ]; then
+              mkdir -p /dev/shm/sccache
+              echo "SCCACHE_DIR=/dev/shm/sccache" >> $GITHUB_ENV
+            fi
+          fi
         
       - name: Setup cross-compilation environment for aarch64
         if: contains(matrix.target, 'aarch64')
@@ -211,23 +229,11 @@ jobs:
               echo "cross tool already installed, skipping"
             fi
             
-            # Create Cross.toml configuration file for OpenSSL
+            # Create .cargo directory for config
             mkdir -p .cargo
-            cat > Cross.toml << EOF
-            [target.aarch64-unknown-linux-gnu]
-            image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:edge"
             
-            [target.aarch64-unknown-linux-gnu.env]
-            passthrough = [
-              "RUST_BACKTRACE",
-              "RUST_LOG",
-              "TRAVIS",
-              "OPENSSL_DIR",
-              "OPENSSL_LIB_DIR",
-              "OPENSSL_INCLUDE_DIR",
-              "OPENSSL_STATIC"
-            ]
-            EOF
+            # Using Cross.toml from repository root
+            echo "Using Cross.toml from repository root"
             
             # Configure cargo for OpenSSL static linking
             echo '[build.env]' > .cargo/config.toml
@@ -294,9 +300,23 @@ jobs:
             
             # Build with cross using the specialized Cargo.toml
             cd aarch64-build
+            
+            # Create symbolic link to Cross.toml in the root directory
+            ln -sf ../Cross.toml ./Cross.toml
+            
+            # Verify the Cross.toml file exists and show its contents
+            echo "Verifying Cross.toml file:"
+            ls -la Cross.toml
+            cat Cross.toml
+            
+            # Determine number of cores for parallel compilation
+            JOBS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
+            echo "Using $JOBS parallel jobs for compilation"
+            
             cross build --release --target ${{ matrix.target }} \
               --no-default-features \
               --features="skia,gl" \
+              -j $JOBS \
               --verbose
             
             # Copy compiled artifacts back to the expected location
@@ -315,6 +335,72 @@ jobs:
           # Remove the temporary build directory to save space
           rm -rf aarch64-build
         
+      - name: Verify ARM64 build artifacts
+        if: contains(matrix.target, 'aarch64')
+        shell: bash
+        run: |
+          echo "Verifying ARM64 build artifacts for ${{ matrix.target }}"
+          
+          # List the contents of the target directory
+          ls -la target/${{ matrix.target }}/release/
+          
+          # Get binary name from Cargo.toml
+          BINARY_NAME=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].targets[] | select(.kind[] | contains("bin")) | .name' | head -n1)
+          
+          # Get package name
+          PACKAGE_NAME=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].name')
+          
+          # Check if we have a binary
+          if [ -n "$BINARY_NAME" ]; then
+            if [ "${{ matrix.os }}" = "windows-latest" ]; then
+              if [ ! -f "target/${{ matrix.target }}/release/${BINARY_NAME}.exe" ]; then
+                echo "ERROR: Expected binary not found: target/${{ matrix.target }}/release/${BINARY_NAME}.exe"
+                exit 1
+              else
+                echo "Binary verified: target/${{ matrix.target }}/release/${BINARY_NAME}.exe"
+                # Get file size
+                if [ "${{ matrix.os }}" = "windows-latest" ]; then
+                  powershell -Command "'{0:N2} MB' -f ((Get-Item target/${{ matrix.target }}/release/${BINARY_NAME}.exe).length / 1MB)"
+                else
+                  ls -lh "target/${{ matrix.target }}/release/${BINARY_NAME}"
+                fi
+              fi
+            else
+              if [ ! -f "target/${{ matrix.target }}/release/${BINARY_NAME}" ]; then
+                echo "ERROR: Expected binary not found: target/${{ matrix.target }}/release/${BINARY_NAME}"
+                exit 1
+              else
+                echo "Binary verified: target/${{ matrix.target }}/release/${BINARY_NAME}"
+                ls -lh "target/${{ matrix.target }}/release/${BINARY_NAME}"
+              fi
+            fi
+          else
+            # Check for library artifacts
+            if [ -f "target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.rlib" ]; then
+              echo "Library artifact verified: target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.rlib"
+              ls -lh "target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.rlib"
+            elif [ -f "target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.so" ]; then
+              echo "Library artifact verified: target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.so"
+              ls -lh "target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.so"
+            elif [ -f "target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.dylib" ]; then
+              echo "Library artifact verified: target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.dylib"
+              ls -lh "target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.dylib"
+            elif [ -f "target/${{ matrix.target }}/release/${PACKAGE_NAME}.dll" ]; then
+              echo "Library artifact verified: target/${{ matrix.target }}/release/${PACKAGE_NAME}.dll"
+              ls -lh "target/${{ matrix.target }}/release/${PACKAGE_NAME}.dll"
+            else
+              echo "WARNING: No expected artifacts found for ${PACKAGE_NAME}"
+              echo "Available files:"
+              find "target/${{ matrix.target }}/release/" -type f -name "*${PACKAGE_NAME}*" | xargs ls -lh
+            fi
+          fi
+        
+      - name: Display sccache statistics
+        shell: bash
+        run: |
+          echo "sccache statistics:"
+          sccache --show-stats
+        
       - name: Package artifacts
         shell: bash
         run: |
@@ -331,7 +417,7 @@ jobs:
           mkdir -p "dist/${OS_NAME}"
           
           # Create a manifest file with build information
-          cat > "dist/${OS_NAME}/manifest.txt" << EOL
+          cat > "dist/${OS_NAME}/manifest.txt" << 'EOL'
           Package: ${PACKAGE_NAME}
           Version: ${PACKAGE_VERSION}
           Target: ${TARGET}
