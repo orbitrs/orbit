@@ -4,23 +4,6 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
-  workflow_dispatch:
-    inputs:
-      publish-crate:
-        description: 'Whether to publish to crates.io'
-        required: false
-        type: boolean
-        default: false
-      build-docs:
-        description: 'Whether to build and publish documentation'
-        required: false
-        type: boolean
-        default: false
-      cross-platform-artifacts:
-        description: 'Whether to build artifacts for multiple platforms'
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -46,9 +29,9 @@ jobs:
         
       - name: Extract Changelog
         id: changelog
-        uses: ffurrer2/extract-release-notes@v1
+        uses: ffurrer2/extract-release-notes@v1.1.2
         with:
-          filename: CHANGELOG.md
+          changelog_file: CHANGELOG.md
         
   publish:
     name: Publish to crates.io
@@ -133,14 +116,38 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
+      
+      # Setup sccache for faster rust compilation
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.3
+          
+      - name: Setup Cargo cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-${{ matrix.target }}-
         
-      - name: Install cross-compilation tools
+      - name: Setup cross-compilation environment for aarch64
         if: contains(matrix.target, 'aarch64')
         shell: bash
         run: |
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            # Setup for Linux ARM64 cross-compilation
-            cargo install cross
+            echo "Setting up Linux ARM64 cross-compilation environment"
+            
+            # Install cross tool if not already cached
+            if ! command -v cross &> /dev/null; then
+              echo "Installing cross tool"
+              cargo install cross --debug
+            else
+              echo "cross tool already installed, skipping"
+            fi
             
             # Create Cross.toml configuration file for OpenSSL
             mkdir -p .cargo
@@ -163,23 +170,50 @@ jobs:
             # Configure cargo for OpenSSL static linking
             echo '[build.env]' > .cargo/config.toml
             echo 'OPENSSL_STATIC = "1"' >> .cargo/config.toml
-            
-            # Create a patched Cargo.toml for aarch64 build that disables reqwest
-            cp Cargo.toml Cargo.toml.original
-            # Use sed to modify the reqwest dependency to be an optional feature
-            sed -i 's/^reqwest = { version = "0.11", features = \["json"\] }$/reqwest = { version = "0.11", features = ["json"], optional = true }/g' Cargo.toml
-            # Add an http feature that includes reqwest
-            if ! grep -q '\[features\]' Cargo.toml; then
-              echo -e "\n[features]\nhttp = [\"dep:reqwest\"]" >> Cargo.toml
-            else
-              sed -i '/\[features\]/a http = [\"dep:reqwest\"]' Cargo.toml
-            fi
-            echo "Modified Cargo.toml for aarch64 build to make reqwest optional"
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
             echo "macOS runners on GitHub Actions have built-in support for ARM64"
           elif [ "${{ matrix.os }}" = "windows-latest" ]; then
+            echo "Setting up Windows ARM64 cross-compilation environment"
+            # No additional setup needed for Windows ARM64 as MSVC handles it
+            # Just ensure the target is installed (which is done by the toolchain setup)
             echo "Using MSVC cross-compiler for Windows ARM64"
           fi
+      
+      - name: Create specialized Cargo.toml for aarch64
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        shell: bash
+        run: |
+          # Create a directory for the specialized build
+          mkdir -p aarch64-build
+          
+          # Copy necessary workspace files (not just Cargo.toml)
+          cp Cargo.toml aarch64-build/
+          cp Cargo.lock aarch64-build/ || echo "No Cargo.lock found"
+          
+          # Instead of copying entire directories, create symbolic links
+          # This saves space and ensures any changes are reflected
+          for dir in src examples; do
+            if [ -d "$dir" ]; then
+              ln -s "../$dir" "aarch64-build/$dir"
+              echo "Created symlink for $dir"
+            fi
+          done
+          
+          cd aarch64-build
+          
+          # Modify the copied Cargo.toml to make reqwest optional
+          # Make reqwest dependency optional
+          sed -i 's/^reqwest = { version = "0.11", features = \["json"\] }$/reqwest = { version = "0.11", features = ["json"], optional = true }/g' Cargo.toml
+          
+          # Add http feature that includes reqwest
+          if ! grep -q '\[features\]' Cargo.toml; then
+            echo -e "\n[features]\nhttp = [\"dep:reqwest\"]" >> Cargo.toml
+          else
+            sed -i '/\[features\]/a http = [\"dep:reqwest\"]' Cargo.toml
+          fi
+          
+          echo "Created specialized Cargo.toml for aarch64 build"
+          cd ..
         
       - name: Install system dependencies (Linux x86_64 only)
         if: matrix.os == 'ubuntu-latest' && !contains(matrix.target, 'aarch64')
@@ -196,24 +230,28 @@ jobs:
           if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
             # Skip dependencies that require OpenSSL in cross-compilation
             
-            # Build with cross and disable problematic features
+            # Build with cross using the specialized Cargo.toml
+            cd aarch64-build
             cross build --release --target ${{ matrix.target }} \
               --no-default-features \
               --features="skia,gl" \
               --verbose
+            
+            # Copy compiled artifacts back to the expected location
+            mkdir -p ../target/${{ matrix.target }}/release/
+            cp -r target/${{ matrix.target }}/release/* ../target/${{ matrix.target }}/release/
+            cd ..
           else
             # Use standard cargo build for other targets
             cargo build --release --target ${{ matrix.target }}
           fi
           
-      - name: Restore original Cargo.toml
-        if: matrix.target == 'aarch64-unknown-linux-gnu' && matrix.os == 'ubuntu-latest'
+      - name: Clean up aarch64 build directory
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
         shell: bash
         run: |
-          if [ -f "Cargo.toml.original" ]; then
-            mv Cargo.toml.original Cargo.toml
-            echo "Restored original Cargo.toml"
-          fi
+          # Remove the temporary build directory to save space
+          rm -rf aarch64-build
         
       - name: Package artifacts
         shell: bash
