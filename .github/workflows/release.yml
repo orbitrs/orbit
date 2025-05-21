@@ -30,6 +30,8 @@ jobs:
       - name: Extract Changelog
         id: changelog
         uses: ffurrer2/extract-release-notes@v1
+        with:
+          filename: CHANGELOG.md
         
   publish:
     name: Publish to crates.io
