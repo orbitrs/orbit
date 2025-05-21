@@ -55,6 +55,10 @@ pub mod desktop {
     use super::PlatformAdapter;
     use crate::renderer::{Renderer, RendererType};
 
+    // Add Rc and RefCell for shared mutable state
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
     use glium::Surface;
     use glutin::config::GlConfig;
     use glutin::context::NotCurrentGlContext;
@@ -69,7 +73,7 @@ pub mod desktop {
     /// Desktop platform adapter
     pub struct DesktopAdapter {
         // Desktop-specific resources
-        renderer: Box<dyn Renderer>,
+        renderer: Rc<RefCell<Box<dyn Renderer>>>, // Changed to Rc<RefCell<...>>
         display: Option<glium::Display<WindowSurface>>,
         event_loop: Option<EventLoop<()>>,
         running: bool,
@@ -80,7 +84,9 @@ pub mod desktop {
         /// Create a new desktop adapter
         pub fn new() -> Self {
             Self {
-                renderer: crate::renderer::create_renderer(RendererType::Auto),
+                renderer: Rc::new(RefCell::new(crate::renderer::create_renderer(
+                    RendererType::Auto,
+                ))), // Wrap in Rc<RefCell<...>>
                 display: None,
                 event_loop: None,
                 running: false,
@@ -91,7 +97,9 @@ pub mod desktop {
         /// Create a new desktop adapter with a specific renderer
         pub fn new_with_renderer(renderer_type: RendererType) -> Self {
             Self {
-                renderer: crate::renderer::create_renderer(renderer_type),
+                renderer: Rc::new(RefCell::new(crate::renderer::create_renderer(
+                    renderer_type,
+                ))), // Wrap in Rc<RefCell<...>>
                 display: None,
                 event_loop: None,
                 running: false,
@@ -208,7 +216,7 @@ pub mod desktop {
         fn init(&mut self) -> Result<(), crate::Error> {
             // Initialize desktop platform
             self.init_window()?;
-            self.renderer.init()?;
+            self.renderer.borrow_mut().init()?; // Use borrow_mut()
 
             Ok(())
         }
@@ -216,28 +224,23 @@ pub mod desktop {
         fn run(&mut self) -> Result<(), crate::Error> {
             // Set flag indicating we're running
             self.running = true;
-
-            // Get the event loop
             let event_loop = match self.event_loop.take() {
                 Some(el) => el,
                 None => return Err(crate::Error::Platform("Event loop not initialized".into())),
             };
 
-            // Sample root component to render
-            let root_html = r#"<div class="root">
-                <h1>Orbit UI Framework</h1>
-                <p>Hello from the desktop platform!</p>
-            </div>"#
-                .to_string();
-
-            // Get a reference to the display
-            let display = match &self.display {
-                Some(display) => display,
+            // Get a clone of the display
+            let display_clone = match &self.display {
+                // Renamed for clarity
+                Some(display) => display.clone(),
                 None => return Err(crate::Error::Platform("Display not initialized".into())),
             };
 
-            // Keep a reference to the renderer for the closure
-            let renderer = &mut self.renderer;
+            // Clone start_time for the closure (Instant is Copy)
+            let start_time_clone = self.start_time; // Renamed for clarity
+
+            // Clone the Rc for the renderer to move into the closure
+            let renderer_rc = self.renderer.clone();
 
             // Run the event loop with the newer API
             let _ = event_loop.run(move |event, window_target| {
@@ -252,22 +255,24 @@ pub mod desktop {
                     }
                     Event::AboutToWait => {
                         // Draw a frame
-                        let mut target = display.draw();
+                        let mut target = display_clone.draw(); // Use cloned display
                         target.clear_color(0.2, 0.2, 0.2, 1.0);
 
                         // Get the elapsed time for animation
-                        let elapsed = self.start_time.elapsed().as_secs_f32();
+                        let elapsed = start_time_clone.elapsed().as_secs_f32(); // Use cloned start_time
 
                         // Create time-based content to render
-                        let content = format!("{{\"time\": {}}}", elapsed);
+                        let content = format!("{{\"time\": {}}}", elapsed); // Corrected escaping
 
                         // Render the UI
-                        if let Err(e) = renderer.render(content) {
+                        if let Err(e) = renderer_rc.borrow_mut().render(content) {
+                            // Use cloned Rc and borrow_mut()
                             eprintln!("Rendering error: {}", e);
                         }
 
                         // Flush changes
-                        if let Err(e) = renderer.flush() {
+                        if let Err(e) = renderer_rc.borrow_mut().flush() {
+                            // Use cloned Rc and borrow_mut()
                             eprintln!("Flush error: {}", e);
                         }
 
@@ -287,7 +292,7 @@ pub mod desktop {
             self.running = false;
 
             // Clean up renderer
-            self.renderer.cleanup()?;
+            self.renderer.borrow_mut().cleanup()?; // Use borrow_mut()
 
             // Display is cleaned up automatically
             self.display = None;
