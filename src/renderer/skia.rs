@@ -181,4 +181,32 @@ impl SkiaRenderer {
             .and_then(|state| state.transform_stack.last().cloned())
             .unwrap_or_else(M44::new_identity)
     }
+
+    /// Render a test circle
+    pub fn draw_test_circle(&mut self) -> RendererResult {
+        let state = match &mut self.state {
+            Some(state) => state,
+            None => return Err(Box::new(RendererError::GeneralError("Renderer not initialized".into()))),
+        };
+        
+        let canvas = state.surface.canvas();
+        
+        // Create a blue-ish paint
+        let mut paint = skia_safe::Paint::new(skia_safe::Color4f::new(0.3, 0.5, 0.8, 1.0), None);
+        paint.set_anti_alias(true);
+        paint.set_style(skia_safe::PaintStyle::Fill);
+        
+        // Draw a circle in the center of the canvas
+        let center_x = state.width as f32 / 2.0;
+        let center_y = state.height as f32 / 2.0;
+        let radius = state.width.min(state.height) as f32 / 4.0;
+        
+        canvas.draw_circle(
+            skia_safe::Point::new(center_x, center_y),
+            radius,
+            &paint,
+        );
+        
+        Ok(())
+    }
 }

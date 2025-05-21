@@ -118,7 +118,9 @@ impl Renderer for SkiaRenderer {
         let canvas = state.surface.canvas();
         canvas.clear(skia_safe::Color4f::new(0.9, 0.9, 0.9, 1.0));
 
-        // TODO: Implement actual rendering of the content
+        // Draw a test circle
+        self.draw_test_circle()
+            .map_err(|e| crate::Error::Renderer(format!("Failed to draw test circle: {}", e)))?;
 
         Ok(())
     }
