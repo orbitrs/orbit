@@ -4,6 +4,24 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+*'
+  workflow_dispatch:
+    inputs:
+      publish-crate:
+        description: 'Publish to crates.io'
+        type: boolean
+        default: false
+      build-docs:
+        description: 'Build and publish documentation'
+        type: boolean
+        default: false
+      cross-platform-artifacts:
+        description: 'Build cross-platform artifacts'
+        type: boolean
+        default: false
+      update-changelog:
+        description: 'Update CHANGELOG.md from changelog.yaml before release'
+        type: boolean
+        default: true
 
 permissions:
   contents: write
@@ -27,11 +45,55 @@ jobs:
         id: version
         run: echo "version=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')" >> $GITHUB_OUTPUT
         
+      - name: Update CHANGELOG.md if needed
+        if: github.event.inputs.update-changelog == 'true'
+        run: |
+          VERSION=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')
+          TODAY=$(date +"%Y-%m-%d")
+          
+          # Trigger the changelog workflow with the current version
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/changelog.yml/dispatches \
+            -d "{\"ref\":\"${{ github.ref }}\", \"inputs\": {\"version\":\"$VERSION\", \"date\":\"$TODAY\"}}"
+          
+          # Give the workflow time to run and commit changes
+          echo "Waiting for changelog workflow to complete..."
+          sleep 30
+          
+          # Pull the latest changes including the updated CHANGELOG.md
+          git pull
+        
       - name: Extract Changelog
         id: changelog
-        uses: ffurrer2/extract-release-notes@v1.1.2
-        with:
-          changelog_file: CHANGELOG.md
+        run: |
+          # Extract the release notes for the current version from CHANGELOG.md
+          VERSION=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')
+          echo "Extracting changelog for version $VERSION"
+          
+          # Extract changelog section between the current version header and the next version header
+          CHANGELOG=$(awk -v version="## \\[$VERSION\\]" '
+            BEGIN { found=0; }
+            /^## \[/ { 
+              if (found == 1) { exit }
+              if ($0 ~ version) { found=1; print; next } 
+            }
+            found { print }
+          ' CHANGELOG.md)
+          
+          # Check if we found anything
+          if [ -z "$CHANGELOG" ]; then
+            echo "Version $VERSION not found in CHANGELOG.md"
+            echo "content=No changelog entry found for version $VERSION" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Format for output
+          CHANGELOG=$(echo "$CHANGELOG" | sed ':a;N;$!ba;s/\n/\\n/g')
+          
+          # Output the formatted changelog
+          echo "content=$CHANGELOG" >> $GITHUB_OUTPUT
         
   publish:
     name: Publish to crates.io
