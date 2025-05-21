@@ -14,6 +14,8 @@ permissions:
 jobs:
   release:
     uses: orbitrs/orbit-workflows/.github/workflows/rust-release.yml@main
+    # Make sure the repository is public or has proper access permissions
+    # See: https://docs.github.com/actions/learn-github-actions/reusing-workflows#access-to-reusable-workflows
     with:
       publish-crate: true
       build-docs: true

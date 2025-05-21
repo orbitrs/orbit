@@ -15,3 +15,5 @@ permissions:
 jobs:
   ci:
     uses: orbitrs/orbit-workflows/.github/workflows/rust-ci.yml@main
+    # Make sure the repository is public or has proper access permissions
+    # See: https://docs.github.com/actions/learn-github-actions/reusing-workflows#access-to-reusable-workflows
