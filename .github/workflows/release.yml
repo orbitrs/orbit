@@ -132,17 +132,40 @@ jobs:
       - name: Package artifacts
         shell: bash
         run: |
+          # First check if there are any binary targets
           BINARY_NAME=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].targets[] | select(.kind[] | contains("bin")) | .name' | head -n1)
-          if [ -z "$BINARY_NAME" ]; then
-            echo "No binary target found"
-            exit 1
-          fi
+          
+          # Get package name for creating artifacts even if no binary targets exist
+          PACKAGE_NAME=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].name')
+          PACKAGE_VERSION=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')
           
           mkdir -p dist
-          if [ "${{ matrix.os }}" = "windows-latest" ]; then
-            cp target/${{ matrix.target }}/release/$BINARY_NAME.exe dist/
+          
+          if [ -n "$BINARY_NAME" ]; then
+            # We have a binary target, copy it to dist
+            if [ "${{ matrix.os }}" = "windows-latest" ]; then
+              cp target/${{ matrix.target }}/release/$BINARY_NAME.exe dist/
+            else
+              cp target/${{ matrix.target }}/release/$BINARY_NAME dist/
+            fi
           else
-            cp target/${{ matrix.target }}/release/$BINARY_NAME dist/
+            # No binary target found, create a package artifact instead
+            echo "No binary target found. Creating package artifact for $PACKAGE_NAME v$PACKAGE_VERSION"
+            echo "$PACKAGE_NAME v$PACKAGE_VERSION built for ${{ matrix.target }}" > dist/package-info.txt
+            
+            # Copy the compiled library artifacts if they exist
+            if [ -f "target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.rlib" ]; then
+              cp target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.rlib dist/
+            fi
+            if [ -f "target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.so" ]; then
+              cp target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.so dist/
+            fi
+            if [ -f "target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.dylib" ]; then
+              cp target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.dylib dist/
+            fi
+            if [ -f "target/${{ matrix.target }}/release/${PACKAGE_NAME}.dll" ]; then
+              cp target/${{ matrix.target }}/release/${PACKAGE_NAME}.dll dist/
+            fi
           fi
       
       - name: Upload artifacts
