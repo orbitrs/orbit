@@ -139,8 +139,42 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-            # Use cross for Linux ARM64 builds instead of system packages
+            # Setup for Linux ARM64 cross-compilation
             cargo install cross
+            
+            # Create Cross.toml configuration file for OpenSSL
+            mkdir -p .cargo
+            cat > Cross.toml << EOF
+            [target.aarch64-unknown-linux-gnu]
+            image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:edge"
+            
+            [target.aarch64-unknown-linux-gnu.env]
+            passthrough = [
+              "RUST_BACKTRACE",
+              "RUST_LOG",
+              "TRAVIS",
+              "OPENSSL_DIR",
+              "OPENSSL_LIB_DIR",
+              "OPENSSL_INCLUDE_DIR",
+              "OPENSSL_STATIC"
+            ]
+            EOF
+            
+            # Configure cargo for OpenSSL static linking
+            echo '[build.env]' > .cargo/config.toml
+            echo 'OPENSSL_STATIC = "1"' >> .cargo/config.toml
+            
+            # Create a patched Cargo.toml for aarch64 build that disables reqwest
+            cp Cargo.toml Cargo.toml.original
+            # Use sed to modify the reqwest dependency to be an optional feature
+            sed -i 's/^reqwest = { version = "0.11", features = \["json"\] }$/reqwest = { version = "0.11", features = ["json"], optional = true }/g' Cargo.toml
+            # Add an http feature that includes reqwest
+            if ! grep -q '\[features\]' Cargo.toml; then
+              echo -e "\n[features]\nhttp = [\"dep:reqwest\"]" >> Cargo.toml
+            else
+              sed -i '/\[features\]/a http = [\"dep:reqwest\"]' Cargo.toml
+            fi
+            echo "Modified Cargo.toml for aarch64 build to make reqwest optional"
           elif [ "${{ matrix.os }}" = "macos-latest" ]; then
             echo "macOS runners on GitHub Actions have built-in support for ARM64"
           elif [ "${{ matrix.os }}" = "windows-latest" ]; then
@@ -160,11 +194,25 @@ jobs:
         shell: bash
         run: |
           if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-            # Use cross for Linux ARM64
-            cross build --release --target ${{ matrix.target }}
+            # Skip dependencies that require OpenSSL in cross-compilation
+            
+            # Build with cross and disable problematic features
+            cross build --release --target ${{ matrix.target }} \
+              --no-default-features \
+              --features="skia,gl" \
+              --verbose
           else
             # Use standard cargo build for other targets
             cargo build --release --target ${{ matrix.target }}
+          fi
+          
+      - name: Restore original Cargo.toml
+        if: matrix.target == 'aarch64-unknown-linux-gnu' && matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: |
+          if [ -f "Cargo.toml.original" ]; then
+            mv Cargo.toml.original Cargo.toml
+            echo "Restored original Cargo.toml"
           fi
         
       - name: Package artifacts
