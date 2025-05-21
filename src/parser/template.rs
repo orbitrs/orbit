@@ -62,7 +62,10 @@ impl<'a> TemplateParser<'a> {
                 }
                 Token::SelfClosingTag(_) => break,
                 Token::Text(text) => {
-                    children.push(TemplateNode::Text(text));
+                    // Only add non-whitespace text nodes
+                    if !text.trim().is_empty() {
+                        children.push(TemplateNode::Text(text));
+                    }
                 }
                 Token::Identifier(text) => {
                     children.push(TemplateNode::Text(text));
@@ -82,6 +85,9 @@ impl<'a> TemplateParser<'a> {
                 Token::Slash => {
                     children.push(TemplateNode::Text("/".to_string()));
                 }
+                Token::Comma => {
+                    children.push(TemplateNode::Text(",".to_string()));
+                }
                 Token::ExprStart => {
                     let expr = self.parse_expression()?;
                     children.push(TemplateNode::Expression(expr));
@@ -100,12 +106,13 @@ impl<'a> TemplateParser<'a> {
             events,
             children,
         })
-    }    /// Parse an expression inside {{ }}
+    }
+    /// Parse an expression inside {{ }}
     fn parse_expression(&mut self) -> Result<String, String> {
         let mut expr = String::new();
         let mut prev_was_operator = false;
         let mut prev_was_identifier = false;
-        
+
         loop {
             match self.tokenizer.next_token() {
                 Token::ExprEnd => break,
@@ -116,12 +123,12 @@ impl<'a> TemplateParser<'a> {
                     expr.push_str(&ident);
                     prev_was_identifier = true;
                     prev_was_operator = false;
-                },
+                }
                 Token::Dot => {
                     expr.push('.');
                     prev_was_identifier = false;
                     prev_was_operator = false;
-                },
+                }
                 Token::Number(num) => {
                     if prev_was_identifier {
                         expr.push(' ');
@@ -129,12 +136,12 @@ impl<'a> TemplateParser<'a> {
                     expr.push_str(&num);
                     prev_was_identifier = true;
                     prev_was_operator = false;
-                },
+                }
                 Token::String(str) => {
                     expr.push_str(&format!("\"{}\"", str));
                     prev_was_identifier = true;
                     prev_was_operator = false;
-                },
+                }
                 Token::Plus => {
                     if !prev_was_operator && !expr.is_empty() {
                         expr.push(' ');
@@ -143,7 +150,7 @@ impl<'a> TemplateParser<'a> {
                     expr.push(' ');
                     prev_was_identifier = false;
                     prev_was_operator = true;
-                },
+                }
                 Token::Minus => {
                     if !prev_was_operator && !expr.is_empty() {
                         expr.push(' ');
@@ -152,7 +159,7 @@ impl<'a> TemplateParser<'a> {
                     expr.push(' ');
                     prev_was_identifier = false;
                     prev_was_operator = true;
-                },
+                }
                 Token::Star => {
                     if !prev_was_operator && !expr.is_empty() {
                         expr.push(' ');
@@ -161,7 +168,7 @@ impl<'a> TemplateParser<'a> {
                     expr.push(' ');
                     prev_was_identifier = false;
                     prev_was_operator = true;
-                },
+                }
                 Token::Slash => {
                     if !prev_was_operator && !expr.is_empty() {
                         expr.push(' ');
@@ -170,23 +177,23 @@ impl<'a> TemplateParser<'a> {
                     expr.push(' ');
                     prev_was_identifier = false;
                     prev_was_operator = true;
-                },
+                }
                 Token::OpenParen => {
                     expr.push('(');
                     prev_was_identifier = false;
                     prev_was_operator = false;
-                },
+                }
                 Token::CloseParen => {
                     expr.push(')');
                     prev_was_identifier = true;
                     prev_was_operator = false;
-                },
+                }
                 Token::Comma => {
                     expr.push(',');
                     expr.push(' ');
                     prev_was_identifier = false;
                     prev_was_operator = false;
-                },
+                }
                 Token::Eof => return Err("Unclosed expression".to_string()),
                 token => return Err(format!("Unexpected token in expression: {:?}", token)),
             }

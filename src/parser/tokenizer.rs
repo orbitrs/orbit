@@ -16,8 +16,8 @@ pub enum Token {
     Text(String),
 
     // Expression tokens
-    ExprStart,    // {{
-    ExprEnd,      // }}
+    ExprStart, // {{
+    ExprEnd,   // }}
     // EventHandler is now handled through AttrName with @ prefix
 
     // Punctuation
@@ -95,10 +95,10 @@ impl<'a> Tokenizer<'a> {
                 }
                 '@' => {
                     self.advance(); // Skip @
-                    // Read the event name
+                                    // Read the event name
                     let mut name = String::new();
                     name.push('@'); // Keep the @ prefix in the attribute name
-                    
+
                     while let Some(ch) = self.peek() {
                         if ch.is_alphanumeric() || ch == '-' {
                             name.push(ch);
@@ -108,7 +108,7 @@ impl<'a> Tokenizer<'a> {
                         }
                     }
                     return Token::AttrName(name);
-                },
+                }
                 '=' => {
                     self.advance();
                     Token::Equal
@@ -151,7 +151,7 @@ impl<'a> Tokenizer<'a> {
                     // Check if we're parsing an attribute name
                     let saved_pos = self.input.clone();
                     let mut ident = String::new();
-                    
+
                     while let Some(ch) = self.peek() {
                         if ch.is_alphanumeric() || ch == '_' || ch == '-' {
                             ident.push(ch);
@@ -160,10 +160,10 @@ impl<'a> Tokenizer<'a> {
                             break;
                         }
                     }
-                    
+
                     // Skip whitespace
                     self.skip_whitespace();
-                    
+
                     // If followed by '=', it's an attribute name
                     if self.peek() == Some('=') {
                         Token::AttrName(ident)
@@ -172,8 +172,8 @@ impl<'a> Tokenizer<'a> {
                         self.input = saved_pos;
                         self.read_identifier()
                     }
-                },
-                ch => self.read_text()
+                }
+                _ch => self.read_text(),
             },
         }
     }
@@ -282,7 +282,7 @@ impl<'a> Tokenizer<'a> {
     /// Read a text node
     fn read_text(&mut self) -> Token {
         let mut text = String::new();
-        
+
         // First character
         if let Some(ch) = self.advance() {
             // Skip '>' character if it's the start of a text node
@@ -293,19 +293,27 @@ impl<'a> Tokenizer<'a> {
         } else {
             return Token::Eof;
         }
-        
+
         // Rest of the text until we hit a special character
         while let Some(ch) = self.peek() {
-            if ch == '<' || ch == '{' || ch == '@' || ch == '=' || ch.is_whitespace() {
+            if ch == '<' || ch == '{' || ch == '@' || ch == '=' {
                 break;
             }
             text.push(ch);
             self.advance();
         }
-        
+
+        // If it's just whitespace, handle it specially
+        if text.trim().is_empty() {
+            // Skip whitespace tokens entirely between elements
+            if self.peek() == Some('<') {
+                return self.next_token();
+            }
+        }
+
         Token::Text(text)
     }
-    
+
     /// Skip whitespace characters
     fn skip_whitespace(&mut self) {
         while let Some(ch) = self.peek() {
