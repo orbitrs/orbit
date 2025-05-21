@@ -1,5 +1,12 @@
 #!/bin/bash
+# Combined workspace setup script for Orbit projects
+
 set -euo pipefail
+
+# Log function for clearer output
+log() {
+  echo "===== $1 ====="
+}
 
 # Function to extract package name from Cargo.toml
 get_package_name() {
@@ -24,14 +31,16 @@ ensure_unique_name() {
   done
   
   if [ "$new_name" != "$orig_name" ]; then
-    echo "Renaming package in $pkg_path from $orig_name to $new_name"
+    log "Renaming package in $pkg_path from $orig_name to $new_name"
     sed -i.bak "s/^name = \"$orig_name\"/name = \"$new_name\"/" "$pkg_path/Cargo.toml"
   fi
   
   echo "$new_name" >> "$SEEN_PACKAGES"
 }
+}
 
 # Get initial package names for logging
+log "Checking package names"
 ORBIT_NAME=$(get_package_name "orbit")
 ORBITON_NAME=$(get_package_name "orbiton")
 ANALYZER_NAME=$(get_package_name "orbit-analyzer")
@@ -53,8 +62,17 @@ echo "orbit-analyzer: $(get_package_name "orbit-analyzer")"
 
 rm -f "$SEEN_PACKAGES"
 
+# Update dependencies to use local paths
+log "Updating dependency paths"
+if [ -f "orbiton/Cargo.toml" ]; then
+  log "Updating orbiton's dependencies"
+  sed -i.bak 's#orbit = { git = "https://github.com/orbitrs/orbit.git" }#orbit = { path = "../orbit" }#' orbiton/Cargo.toml
+  sed -i.bak 's#orbit-analyzer = { git = "https://github.com/orbitrs/orbit-analyzer.git" }#orbit-analyzer = { path = "../orbit-analyzer" }#' orbiton/Cargo.toml
+fi
+
 # Create workspace Cargo.toml
-cat > Cargo.toml << EOF
+log "Creating workspace Cargo.toml"
+cat > Cargo.toml << 'EOF'
 [workspace]
 resolver = "2"
 members = [
@@ -89,6 +107,13 @@ EOF
 
 # Fix module ambiguity if needed
 if [ -f "orbit/src/parser.rs" ] && [ -f "orbit/src/parser/mod.rs" ]; then
-  echo "Found both parser.rs and parser/mod.rs. Renaming parser.rs to parser_legacy.rs..."
+  log "Found both parser.rs and parser/mod.rs. Renaming parser.rs to parser_legacy.rs..."
   mv orbit/src/parser.rs orbit/src/parser_legacy.rs
 fi
+
+# Print debug information
+log "Workspace configuration"
+find . -maxdepth 2 -name "Cargo.toml" -type f -exec echo "{}" \; -exec cat "{}" \;
+
+log "Setup complete"
+echo "You can now build the workspace with: cargo build"
