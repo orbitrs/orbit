@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../docs"
+		},
+		{
+			"path": "../orbit-analyzer"
+		},
+		{
+			"path": "../orbit-workflows"
+		},
+		{
+			"path": "../orbitkit"
+		},
+		{
+			"path": "../orbiton"
+		}
+	],
+	"settings": {}
+}
