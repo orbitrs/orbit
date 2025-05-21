@@ -67,7 +67,7 @@ h2 {
 </style>
 
 <script>
-use orbit::prelude::*;
+use orbitrs::prelude::*;
 
 /// A simple counter component.
 pub struct Counter {

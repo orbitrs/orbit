@@ -61,7 +61,7 @@ h3 {
 </style>
 
 <script>
-use orbit::prelude::*;
+use orbitrs::prelude::*;
 use orbitkit::prelude::*;
 use chrono::{DateTime, Utc};
 

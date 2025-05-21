@@ -18,7 +18,7 @@ div {
 </style>
 
 <script>
-use orbit::prelude::*;
+use orbitrs::prelude::*;
 
 pub struct HelloWorld {
     message: String,
@@ -74,7 +74,7 @@ div {
 </style>
 
 <script>
-use orbit::prelude::*;
+use orbitrs::prelude::*;
 
 pub struct HelloWorld {
     message: String,
