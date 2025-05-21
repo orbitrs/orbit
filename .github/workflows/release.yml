@@ -138,41 +138,80 @@ jobs:
           # Get package name for creating artifacts even if no binary targets exist
           PACKAGE_NAME=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].name')
           PACKAGE_VERSION=$(cargo metadata --no-deps --format-version=1 | jq -r '.packages[0].version')
+          TARGET=${{ matrix.target }}
+          OS_NAME=${{ matrix.name }}
           
-          mkdir -p dist
+          # Create a dist directory with the target platform in the name to avoid conflicts
+          mkdir -p "dist/${OS_NAME}"
+          
+          # Create a manifest file with build information
+          cat > "dist/${OS_NAME}/manifest.txt" << EOL
+          Package: ${PACKAGE_NAME}
+          Version: ${PACKAGE_VERSION}
+          Target: ${TARGET}
+          Build Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+          Git SHA: ${GITHUB_SHA}
+          EOL
           
           if [ -n "$BINARY_NAME" ]; then
-            # We have a binary target, copy it to dist
+            # We have a binary target, copy it to dist with OS-specific name
             if [ "${{ matrix.os }}" = "windows-latest" ]; then
-              cp target/${{ matrix.target }}/release/$BINARY_NAME.exe dist/
+              cp "target/${TARGET}/release/${BINARY_NAME}.exe" "dist/${OS_NAME}/${PACKAGE_NAME}-${PACKAGE_VERSION}-${OS_NAME}.exe"
             else
-              cp target/${{ matrix.target }}/release/$BINARY_NAME dist/
+              cp "target/${TARGET}/release/${BINARY_NAME}" "dist/${OS_NAME}/${PACKAGE_NAME}-${PACKAGE_VERSION}-${OS_NAME}"
             fi
+            echo "Binary target: ${BINARY_NAME}" >> "dist/${OS_NAME}/manifest.txt"
           else
             # No binary target found, create a package artifact instead
             echo "No binary target found. Creating package artifact for $PACKAGE_NAME v$PACKAGE_VERSION"
-            echo "$PACKAGE_NAME v$PACKAGE_VERSION built for ${{ matrix.target }}" > dist/package-info.txt
+            echo "Library build - no binary targets found" >> "dist/${OS_NAME}/manifest.txt"
             
-            # Copy the compiled library artifacts if they exist
-            if [ -f "target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.rlib" ]; then
-              cp target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.rlib dist/
+            # Create a directory for library files
+            mkdir -p "dist/${OS_NAME}/lib"
+            
+            # Copy the compiled library artifacts if they exist with platform-specific names
+            if [ -f "target/${TARGET}/release/lib${PACKAGE_NAME}.rlib" ]; then
+              cp "target/${TARGET}/release/lib${PACKAGE_NAME}.rlib" "dist/${OS_NAME}/lib/${PACKAGE_NAME}-${PACKAGE_VERSION}-${OS_NAME}.rlib"
+              echo "Library artifact: rlib" >> "dist/${OS_NAME}/manifest.txt"
             fi
-            if [ -f "target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.so" ]; then
-              cp target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.so dist/
+            if [ -f "target/${TARGET}/release/lib${PACKAGE_NAME}.so" ]; then
+              cp "target/${TARGET}/release/lib${PACKAGE_NAME}.so" "dist/${OS_NAME}/lib/${PACKAGE_NAME}-${PACKAGE_VERSION}-${OS_NAME}.so"
+              echo "Library artifact: so" >> "dist/${OS_NAME}/manifest.txt"
             fi
-            if [ -f "target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.dylib" ]; then
-              cp target/${{ matrix.target }}/release/lib${PACKAGE_NAME}.dylib dist/
+            if [ -f "target/${TARGET}/release/lib${PACKAGE_NAME}.dylib" ]; then
+              cp "target/${TARGET}/release/lib${PACKAGE_NAME}.dylib" "dist/${OS_NAME}/lib/${PACKAGE_NAME}-${PACKAGE_VERSION}-${OS_NAME}.dylib"
+              echo "Library artifact: dylib" >> "dist/${OS_NAME}/manifest.txt"
             fi
-            if [ -f "target/${{ matrix.target }}/release/${PACKAGE_NAME}.dll" ]; then
-              cp target/${{ matrix.target }}/release/${PACKAGE_NAME}.dll dist/
+            if [ -f "target/${TARGET}/release/${PACKAGE_NAME}.dll" ]; then
+              cp "target/${TARGET}/release/${PACKAGE_NAME}.dll" "dist/${OS_NAME}/lib/${PACKAGE_NAME}-${PACKAGE_VERSION}-${OS_NAME}.dll"
+              echo "Library artifact: dll" >> "dist/${OS_NAME}/manifest.txt"
             fi
           fi
+          
+          # Create a ZIP archive of the artifacts
+          if [ "${{ matrix.os }}" = "windows-latest" ]; then
+            powershell Compress-Archive -Path "dist/${OS_NAME}/*" -DestinationPath "dist/${PACKAGE_NAME}-${PACKAGE_VERSION}-${OS_NAME}.zip"
+          else
+            (cd "dist/${OS_NAME}" && zip -r "../${PACKAGE_NAME}-${PACKAGE_VERSION}-${OS_NAME}.zip" .)
+          fi
+          
+          # Keep both the directory and the ZIP file for flexibility
+          echo "Created artifacts for ${PACKAGE_NAME} v${PACKAGE_VERSION} (${OS_NAME}):"
+          find dist -type f | sort
       
-      - name: Upload artifacts
+      # Upload the zipped package directly
+      - name: Upload zipped artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.name }}
-          path: dist/
+          name: ${{ matrix.name }}-zip
+          path: dist/*.zip
+          
+      # Also upload the directory structure for compatibility
+      - name: Upload directory artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}-dir
+          path: dist/${{ matrix.name }}/
   
   release:
     name: Create GitHub Release
@@ -187,11 +226,37 @@ jobs:
         with:
           path: dist
       
+      - name: List artifacts structure
+        run: |
+          echo "Listing downloaded artifacts structure:"
+          find dist -type f | sort
+          
+      - name: Prepare files for release
+        run: |
+          # Create a flat directory structure for the release
+          mkdir -p release_files
+          for file in $(find dist -type f); do
+            # Extract just the filename without directory path
+            filename=$(basename "$file")
+            # Copy to release_files dir with unique names in case of conflicts
+            dir_name=$(dirname "$file" | sed -e 's|dist/||' | tr '/' '-')
+            if [ "$dir_name" = "." ]; then
+              cp "$file" "release_files/$filename"
+            else
+              cp "$file" "release_files/${dir_name}-${filename}"
+            fi
+          done
+          echo "Files prepared for release:"
+          ls -la release_files/
+      
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           name: v${{ needs.prepare.outputs.version }}
           body: ${{ needs.prepare.outputs.changelog }}
-          files: dist/**/*
+          files: |
+            release_files/*
+            dist/*.zip
           draft: false
           prerelease: false
+          fail_on_unmatched_files: false
