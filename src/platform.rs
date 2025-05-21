@@ -55,19 +55,19 @@ pub mod desktop {
     use super::PlatformAdapter;
     use crate::renderer::{Renderer, RendererType};
 
-    // Import glutin directly
     use glium::Surface;
-    use glutin::dpi::LogicalSize;
-    use glutin::event::{Event, WindowEvent};
-    use glutin::event_loop::{ControlFlow, EventLoop};
-    use glutin::window::WindowBuilder;
-    use glutin::ContextBuilder;
+    use glutin::context::ContextBuilder;
+    use glutin::surface::WindowSurface;
+    use winit::dpi::LogicalSize;
+    use winit::event::{Event, WindowEvent};
+    use winit::event_loop::{ControlFlow, EventLoop};
+    use winit::window::WindowBuilder;
 
     /// Desktop platform adapter
     pub struct DesktopAdapter {
         // Desktop-specific resources
         renderer: Box<dyn Renderer>,
-        window: Option<glium::Display<glutin::surface::WindowSurface>>,
+        display: Option<glium::Display<WindowSurface>>,
         event_loop: Option<EventLoop<()>>,
         running: bool,
     }
@@ -77,7 +77,7 @@ pub mod desktop {
         pub fn new() -> Self {
             Self {
                 renderer: crate::renderer::create_renderer(RendererType::Auto),
-                window: None,
+                display: None,
                 event_loop: None,
                 running: false,
             }
@@ -87,7 +87,7 @@ pub mod desktop {
         pub fn new_with_renderer(renderer_type: RendererType) -> Self {
             Self {
                 renderer: crate::renderer::create_renderer(renderer_type),
-                window: None,
+                display: None,
                 event_loop: None,
                 running: false,
             }
@@ -96,7 +96,9 @@ pub mod desktop {
         /// Initialize the window
         fn init_window(&mut self) -> Result<(), crate::Error> {
             // Create an event loop
-            let event_loop = EventLoop::new();
+            let event_loop = EventLoop::new().map_err(|e| {
+                crate::Error::Platform(format!("Failed to create event loop: {}", e))
+            })?;
 
             // Window configuration
             let window_builder = WindowBuilder::new()
@@ -104,13 +106,19 @@ pub mod desktop {
                 .with_inner_size(LogicalSize::new(800.0, 600.0));
 
             // Context configuration
-            let context_builder = ContextBuilder::new().with_vsync(true);
+            let context_builder = ContextBuilder::new()
+                .with_vsync(true)
+                .with_hardware_acceleration(Some(true));
 
-            // Create a display (window + context)
-            let display = glium::Display::new(window_builder, context_builder, &event_loop)
-                .map_err(|e| crate::Error::Platform(format!("Failed to create window: {}", e)))?;
+            // Create a display using simplified API
+            let display = unsafe {
+                glutin_winit::finalize_display(window_builder, context_builder, &event_loop)
+                    .map_err(|e| {
+                        crate::Error::Platform(format!("Failed to create display: {}", e))
+                    })?
+            };
 
-            self.window = Some(display);
+            self.display = Some(display);
             self.event_loop = Some(event_loop);
 
             Ok(())
@@ -143,33 +151,49 @@ pub mod desktop {
             </div>"#
                 .to_string();
 
-            // Run the event loop
-            event_loop.run(move |event, _, control_flow| {
-                *control_flow = ControlFlow::Poll;
+            // Get a reference to the display
+            let display = match &self.display {
+                Some(display) => display,
+                None => return Err(crate::Error::Platform("Display not initialized".into())),
+            };
+
+            // Keep a reference to the renderer for the closure
+            let renderer = &mut self.renderer;
+
+            // Run the event loop with the newer API
+            let _ = event_loop.run(move |event, window_target| {
+                window_target.set_control_flow(ControlFlow::Poll);
 
                 match event {
                     Event::WindowEvent {
                         event: WindowEvent::CloseRequested,
                         ..
                     } => {
-                        *control_flow = ControlFlow::Exit;
+                        window_target.exit();
                     }
-                    Event::MainEventsCleared => {
+                    Event::AboutToWait => {
+                        // Draw a frame
+                        let mut target = display.draw();
+                        target.clear_color(0.2, 0.2, 0.2, 1.0);
+
                         // Render the UI
-                        if let Err(e) = self.renderer.render(root_html.clone()) {
+                        if let Err(e) = renderer.render(root_html.clone()) {
                             eprintln!("Rendering error: {}", e);
                         }
 
                         // Flush changes
-                        if let Err(e) = self.renderer.flush() {
+                        if let Err(e) = renderer.flush() {
                             eprintln!("Flush error: {}", e);
                         }
+
+                        // Finish drawing
+                        target.finish().unwrap();
                     }
                     _ => (),
                 }
             });
 
-            // We should never reach here as event_loop.run() is blocking
+            // We shouldn't reach here due to event_loop.run() consuming event_loop
             Ok(())
         }
 
@@ -180,8 +204,8 @@ pub mod desktop {
             // Clean up renderer
             self.renderer.cleanup()?;
 
-            // Window is cleaned up automatically
-            self.window = None;
+            // Display is cleaned up automatically
+            self.display = None;
 
             Ok(())
         }
