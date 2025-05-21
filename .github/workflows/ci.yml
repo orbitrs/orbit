@@ -7,13 +7,18 @@ on:
     branches: [ main ]
 
 permissions:
-  contents: read
+  contents: write # Changed to write to allow auto-formatting commits
   actions: read
   pull-requests: read
   id-token: write # This is required for requesting the JWT
 
 jobs:
+  format:
+    uses: orbitrs/orbit-workflows/.github/workflows/rust-format.yml@main
+    # This will format your code and commit the changes
+  
   ci:
     uses: orbitrs/orbit-workflows/.github/workflows/rust-ci.yml@main
+    needs: format
     # Make sure the repository is public or has proper access permissions
     # See: https://docs.github.com/actions/learn-github-actions/reusing-workflows#access-to-reusable-workflows

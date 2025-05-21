@@ -1,14 +1,10 @@
 //! Renderer implementation for the Orbit UI framework
 
-use std::{
-    error::Error,
-    fmt,
-    sync::Arc,
-};
+use std::{error::Error, fmt, sync::Arc};
 
 use skia_safe::{
     gpu::{gl::Interface, Budgeted, SurfaceOrigin},
-    M44, Surface,
+    Surface, M44,
 };
 
 use crate::component::Node;
@@ -96,17 +92,16 @@ impl SkiaRenderer {
     /// Initialize Skia state
     fn init_skia(&mut self, width: i32, height: i32) -> RendererResult {
         // Create Skia GL interface
-        let interface = Interface::new_native()
-            .ok_or_else(|| {
-                let err: Box<dyn std::error::Error + Send> = Box::new(RendererError::GlError(
-                    "Failed to create GL interface".to_string(),
-                ));
-                err
-            })?;
+        let interface = Interface::new_native().ok_or_else(|| {
+            let err: Box<dyn std::error::Error + Send> = Box::new(RendererError::GlError(
+                "Failed to create GL interface".to_string(),
+            ));
+            err
+        })?;
 
         // Create Skia GPU context with proper error handling
-        let mut gr_context = skia_safe::gpu::DirectContext::new_gl(interface, None)
-            .ok_or_else(|| {
+        let mut gr_context =
+            skia_safe::gpu::DirectContext::new_gl(interface, None).ok_or_else(|| {
                 let err: Box<dyn std::error::Error + Send> = Box::new(RendererError::SkiaError(
                     "Failed to create GPU context".to_string(),
                 ));
@@ -120,7 +115,7 @@ impl SkiaRenderer {
             skia_safe::AlphaType::Premul,
             None,
         );
-        
+
         // Create surface with proper error handling
         let mut surface = Surface::new_render_target(
             &mut gr_context,
@@ -130,7 +125,8 @@ impl SkiaRenderer {
             SurfaceOrigin::BottomLeft,
             None,
             false,
-        ).ok_or_else(|| {
+        )
+        .ok_or_else(|| {
             let err: Box<dyn std::error::Error + Send> = Box::new(RendererError::SkiaError(
                 "Failed to create surface".to_string(),
             ));

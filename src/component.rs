@@ -137,11 +137,11 @@ impl<C: Component + 'static> AnyComponent for C {
     fn as_any(&self) -> &dyn std::any::Any {
         self.as_any()
     }
-    
+
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self.as_any_mut()
     }
-    
+
     fn update_props(&mut self, props: Box<dyn Props>) -> Result<(), ComponentError> {
         // Safely downcast the props using as_any()
         let props_any = props.as_any();
@@ -150,22 +150,22 @@ impl<C: Component + 'static> AnyComponent for C {
                 // Clone the props since we know C::Props implements Clone
                 let props_clone = concrete_props.clone();
                 self.update(props_clone)
-            },
+            }
             None => Err(ComponentError::PropsMismatch {
                 expected: TypeId::of::<C::Props>(),
                 got: props_any.type_id(),
             }),
         }
     }
-    
+
     fn mount(&mut self) -> Result<(), ComponentError> {
         Component::mount(self)
     }
-    
+
     fn unmount(&mut self) -> Result<(), ComponentError> {
         Component::unmount(self)
     }
-    
+
     fn render(&self) -> Result<Vec<Node>, ComponentError> {
         Component::render(self)
     }
@@ -196,29 +196,31 @@ impl ComponentInstance {
     /// Update the component instance with new props
     pub fn update<P: Props>(&mut self, props: P) -> Result<(), ComponentError> {
         let prop_type_id = TypeId::of::<P>();
-        
+
         // Check that the props type matches
         if self.type_id != TypeId::of::<P>() {
-            return Err(ComponentError::PropsMismatch { 
-                expected: self.type_id, 
-                got: prop_type_id 
+            return Err(ComponentError::PropsMismatch {
+                expected: self.type_id,
+                got: prop_type_id,
             });
         }
 
         // Store the new props
         self.props = Box::new(props);
-        
+
         // Update the component with the new props
-        let mut instance = self.instance.lock().map_err(|_| 
+        let mut instance = self.instance.lock().map_err(|_| {
             ComponentError::LockError("Failed to lock component instance".to_string())
-        )?;
-        
+        })?;
+
         instance.update_props(self.props.box_clone())
     }
 }
 
 /// Factory for creating component instances
-type ComponentFactory = Box<dyn Fn(Box<dyn Props>, Context) -> Result<Box<dyn AnyComponent>, ComponentError> + Send + Sync>;
+type ComponentFactory = Box<
+    dyn Fn(Box<dyn Props>, Context) -> Result<Box<dyn AnyComponent>, ComponentError> + Send + Sync,
+>;
 
 use std::error::Error;
 use std::fmt;
@@ -279,13 +281,11 @@ impl ComponentRegistry {
                     // Create the component and wrap it
                     let component = factory(props_clone, ctx);
                     Ok(Box::new(component) as Box<dyn AnyComponent>)
-                },
-                None => {
-                    Err(ComponentError::PropsMismatch {
-                        expected: TypeId::of::<C::Props>(),
-                        got: props_any.type_id(),
-                    })
                 }
+                None => Err(ComponentError::PropsMismatch {
+                    expected: TypeId::of::<C::Props>(),
+                    got: props_any.type_id(),
+                }),
             }
         });
 
@@ -323,16 +323,16 @@ impl ComponentRegistry {
         // We know C::Props implements Clone because of the trait bound in Component
         let props_box = Box::new(props) as Box<dyn Props>;
         let component = factory(props_box, ctx)?;
-        
+
         // Get a reference to the underlying component
         let any_ref = component.as_any();
-        
+
         // Try to downcast to the concrete type
         match any_ref.downcast_ref::<C>() {
             Some(typed_ref) => {
                 // Only works if C implements Clone
                 Ok(typed_ref.clone())
-            },
+            }
             None => Err(ComponentError::DowncastError),
         }
     }

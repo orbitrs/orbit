@@ -28,13 +28,13 @@ impl StateContainer {
     /// Create a new state value
     pub fn create<T: 'static + Clone + Send + Sync>(&self, initial: T) -> State<T> {
         let type_id = TypeId::of::<T>();
-        
+
         // Store initial value
         self.values
             .lock()
             .unwrap()
             .insert(type_id, Box::new(initial.clone()));
-        
+
         State {
             container: self.clone(),
             type_id,
@@ -51,13 +51,13 @@ impl StateContainer {
         // Create initial value
         let initial = compute();
         let type_id = TypeId::of::<T>();
-        
+
         // Store initial value
         self.values
             .lock()
             .unwrap()
             .insert(type_id, Box::new(initial));
-        
+
         Computed::new(self.clone(), compute, dependencies)
     }
 
@@ -67,7 +67,7 @@ impl StateContainer {
         F: Fn() + Send + Sync + 'static,
     {
         let mut subscribers = self.subscribers.lock().unwrap();
-        
+
         subscribers
             .entry(type_id)
             .or_insert_with(Vec::new)
@@ -77,7 +77,7 @@ impl StateContainer {
     /// Notify subscribers of state change
     pub fn notify(&self, type_id: TypeId) {
         let subscribers = self.subscribers.lock().unwrap();
-        
+
         if let Some(callbacks) = subscribers.get(&type_id) {
             for callback in callbacks {
                 callback();
@@ -90,10 +90,10 @@ impl StateContainer {
 pub struct State<T> {
     /// State container
     container: StateContainer,
-    
+
     /// Type ID for this state
     type_id: TypeId,
-    
+
     /// Phantom data for type
     _marker: std::marker::PhantomData<T>,
 }
@@ -102,14 +102,14 @@ impl<T: 'static + Clone + Send + Sync> State<T> {
     /// Get current value
     pub fn get(&self) -> T {
         let values = self.container.values.lock().unwrap();
-        
+
         values
             .get(&self.type_id)
             .and_then(|value| value.downcast_ref::<T>())
             .cloned()
             .unwrap()
     }
-    
+
     /// Set new value
     pub fn set(&self, value: T) {
         // Update value
@@ -118,7 +118,7 @@ impl<T: 'static + Clone + Send + Sync> State<T> {
             .lock()
             .unwrap()
             .insert(self.type_id, Box::new(value));
-        
+
         // Notify subscribers
         self.container.notify(self.type_id);
     }
@@ -128,10 +128,10 @@ impl<T: 'static + Clone + Send + Sync> State<T> {
 pub struct Computed<T> {
     /// State container
     container: StateContainer,
-    
+
     /// Type ID for this state
     type_id: TypeId,
-    
+
     /// Compute function
     compute: Arc<Box<dyn Fn() -> T + Send + Sync>>,
 
@@ -147,7 +147,7 @@ impl<T: 'static + Clone + Send + Sync> Computed<T> {
     {
         // Initial value already stored in container
         let type_id = TypeId::of::<T>();
-        
+
         // Wrap compute function in Arc for cloning
         let compute_arc = Arc::new(Box::new(compute) as Box<dyn Fn() -> T + Send + Sync>);
 
