@@ -73,6 +73,7 @@ pub mod desktop {
         display: Option<glium::Display<WindowSurface>>,
         event_loop: Option<EventLoop<()>>,
         running: bool,
+        start_time: std::time::Instant,
     }
 
     impl DesktopAdapter {
@@ -83,6 +84,7 @@ pub mod desktop {
                 display: None,
                 event_loop: None,
                 running: false,
+                start_time: std::time::Instant::now(),
             }
         }
 
@@ -93,6 +95,7 @@ pub mod desktop {
                 display: None,
                 event_loop: None,
                 running: false,
+                start_time: std::time::Instant::now(),
             }
         }
 
@@ -252,8 +255,14 @@ pub mod desktop {
                         let mut target = display.draw();
                         target.clear_color(0.2, 0.2, 0.2, 1.0);
 
+                        // Get the elapsed time for animation
+                        let elapsed = self.start_time.elapsed().as_secs_f32();
+                        
+                        // Create time-based content to render
+                        let content = format!("{{\"time\": {}}}", elapsed);
+
                         // Render the UI
-                        if let Err(e) = renderer.render(root_html.clone()) {
+                        if let Err(e) = renderer.render(content) {
                             eprintln!("Rendering error: {}", e);
                         }
 

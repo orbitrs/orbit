@@ -209,4 +209,39 @@ impl SkiaRenderer {
         
         Ok(())
     }
+
+    /// Draw an animated circle
+    pub fn draw_animated_circle(&mut self, time: f32) -> RendererResult {
+        let state = match &mut self.state {
+            Some(state) => state,
+            None => return Err(Box::new(RendererError::GeneralError("Renderer not initialized".into()))),
+        };
+        
+        let canvas = state.surface.canvas();
+        
+        // Create a color that cycles with time
+        let r = (time.sin() * 0.5 + 0.5) as f32;
+        let g = ((time + 2.0).sin() * 0.5 + 0.5) as f32;
+        let b = ((time + 4.0).sin() * 0.5 + 0.5) as f32;
+        
+        let mut paint = skia_safe::Paint::new(skia_safe::Color4f::new(r, g, b, 1.0), None);
+        paint.set_anti_alias(true);
+        paint.set_style(skia_safe::PaintStyle::Fill);
+        
+        // Draw a pulsing circle that moves in a figure-8 pattern
+        let center_x = state.width as f32 / 2.0 + (time.sin() * state.width as f32 / 4.0);
+        let center_y = state.height as f32 / 2.0 + (time * 2.0).sin() * state.height as f32 / 4.0;
+        
+        // Pulsing radius
+        let base_radius = state.width.min(state.height) as f32 / 6.0;
+        let radius = base_radius + ((time * 3.0).sin() * base_radius * 0.2);
+        
+        canvas.draw_circle(
+            skia_safe::Point::new(center_x, center_y),
+            radius,
+            &paint,
+        );
+        
+        Ok(())
+    }
 }
