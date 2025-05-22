@@ -134,6 +134,21 @@ jobs:
       - name: Build documentation
         run: cargo doc --no-deps --document-private-items
       
+      - name: Prepare docs directory
+        run: |
+          # Create a redirect index.html in the root of the documentation
+          echo '<!DOCTYPE html>
+          <html>
+            <head>
+              <meta charset="utf-8">
+              <meta http-equiv="refresh" content="0;url=orbitui/index.html">
+              <title>Redirecting to orbitui documentation</title>
+            </head>
+            <body>
+              <p>Redirecting to <a href="orbitui/index.html">orbitui documentation</a>...</p>
+            </body>
+          </html>' > ./target/doc/index.html
+      
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
