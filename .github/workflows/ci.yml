@@ -123,6 +123,10 @@ jobs:
         with:
           files: lcov.info
           fail_ci_if_error: false
+          verbose: true
+          retry-max-attempts: 5
+          retry-wait-seconds: 300
+          # No token required for public repositories with GitHub integration
   
   security-audit:
     name: Security Audit
