@@ -61,7 +61,7 @@ h3 {
 </style>
 
 <code lang="rust">
-use orbitui::prelude::*;
+use orbit::prelude::*;
 use orbitkit::prelude::*;
 use chrono::{DateTime, Utc};
 

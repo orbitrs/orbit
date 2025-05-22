@@ -67,7 +67,7 @@ h2 {
 </style>
 
 <code lang="rust">
-use orbitui::prelude::*;
+use orbit::prelude::*;
 
 /// A simple counter component.
 pub struct Counter {

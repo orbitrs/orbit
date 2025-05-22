@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../.github"
+		},
+		{
+			"path": "../orbitui"
+		},
+		{
+			"path": "../orlint"
+		},
+		{
+			"path": "../orbiton"
+		},
+		{
+			"path": "../docs"
+		}
+	],
+	"settings": {}
+}

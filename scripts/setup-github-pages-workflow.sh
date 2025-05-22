@@ -5,7 +5,7 @@ set -e
 
 WORKSPACE_DIR="/Volumes/EXT/repos/orbitrs"
 GITHUB_REPO_DIR="$WORKSPACE_DIR/.github"
-WORKSPACE_FILE="$WORKSPACE_DIR/orbitui/orbitrs.code-workspace"
+WORKSPACE_FILE="$WORKSPACE_DIR/orbit/orbitrs.code-workspace"
 
 echo "Setting up GitHub Pages workflow for orbitrs organization"
 echo "========================================================"

@@ -141,11 +141,11 @@ jobs:
           <html>
             <head>
               <meta charset="utf-8">
-              <meta http-equiv="refresh" content="0;url=orbitui/index.html">
-              <title>Redirecting to orbitui documentation</title>
+              <meta http-equiv="refresh" content="0;url=orbit/index.html">
+              <title>Redirecting to orbit documentation</title>
             </head>
             <body>
-              <p>Redirecting to <a href="orbitui/index.html">orbitui documentation</a>...</p>
+              <p>Redirecting to <a href="orbit/index.html">orbit documentation</a>...</p>
             </body>
           </html>' > ./target/doc/index.html
       

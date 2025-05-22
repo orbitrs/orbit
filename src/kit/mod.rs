@@ -1,11 +1,11 @@
-// OrbitKit Component Library (now part of OrbitUI)
+// OrbitKit Component Library (now part of orbit)
 
 pub mod components;
 pub mod theme;
 pub mod utils;
 
-/// Version of the OrbitKit library (deprecated, use OrbitUI version)
-pub const VERSION: &str = env!("CARGO_PKG_VERSION"); // This will now refer to orbitui's version
+/// Version of the OrbitKit library (deprecated, use orbit version)
+pub const VERSION: &str = env!("CARGO_PKG_VERSION"); // This will now refer to orbit's version
 
 /// Re-export of common components for convenience
 pub mod prelude {

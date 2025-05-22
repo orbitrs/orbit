@@ -1,9 +1,9 @@
 // Test program for the orbit window system with Skia rendering
-use orbitui::platform::PlatformType;
+use orbit::platform::PlatformType;
 
-fn main() -> Result<(), orbitui::Error> {
+fn main() -> Result<(), orbit::Error> {
     // Create desktop adapter
-    let mut adapter = orbitui::platform::create_adapter(PlatformType::Desktop);
+    let mut adapter = orbit::platform::create_adapter(PlatformType::Desktop);
 
     // Initialize the adapter (creates window)
     adapter.init()?;

@@ -217,7 +217,7 @@ jobs:
           .button {}
           </style>
           "#;
-                      orbitui::parser::OrbitParser::parse(content).unwrap()
+                      orbit::parser::OrbitParser::parse(content).unwrap()
                   });
               });
           }

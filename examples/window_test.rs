@@ -1,7 +1,7 @@
 // Test program for the orbit window system
-use orbitui::platform::{create_adapter, PlatformType};
+use orbit::platform::{create_adapter, PlatformType};
 
-fn main() -> Result<(), orbitui::Error> {
+fn main() -> Result<(), orbit::Error> {
     // Create desktop adapter
     let mut adapter = create_adapter(PlatformType::Desktop);
 
