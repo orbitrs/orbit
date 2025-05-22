@@ -7,6 +7,8 @@ pub mod renderer;
 pub mod state;
 pub mod style;
 
+pub mod kit; // Added for OrbitKit components
+
 /// Version of the Orbit UI Framework
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 

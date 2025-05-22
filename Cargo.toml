@@ -6,7 +6,7 @@ authors = ["Orbit Team <orbit@example.com>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/orbitrs/orbitui"
 readme = "README.md"
-description = "Core UI framework for the Orbit ecosystem - provides the rendering engine, component model, and framework APIs"
+description = "Core UI framework for the Orbit ecosystem - provides the rendering engine, component model, and framework APIs. Includes the OrbitKit component library."
 
 [dependencies]
 # Rendering dependencies
@@ -51,6 +51,9 @@ url = "2.5.0"
 
 # Development utilities
 regex = "1.10.2"
+
+# Added from orbitkit
+rand = "0.8.5"
 
 [features]
 default = ["skia", "gl"]
