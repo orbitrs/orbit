@@ -7,16 +7,13 @@
 			"path": "../.github"
 		},
 		{
-			"path": "../orbitui"
+			"path": "../docs"
 		},
 		{
 			"path": "../orlint"
 		},
 		{
 			"path": "../orbiton"
-		},
-		{
-			"path": "../docs"
 		}
 	],
 	"settings": {}
