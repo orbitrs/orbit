@@ -124,12 +124,10 @@ jobs:
       - name: Wait before upload
         run: sleep 30
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+      - name: Upload coverage reports to Codecov
+        uses: codecov/codecov-action@v5
         with:
-          files: lcov.info
-          verbose: true
-          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
   
   security-audit:
     name: Security Audit
