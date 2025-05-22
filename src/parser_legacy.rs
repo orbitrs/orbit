@@ -50,7 +50,7 @@ impl OrbitParser {
         let mut code = String::new();
 
         // Add standard imports
-        code.push_str("use orbitrs::prelude::*;\n");
+        code.push_str("use orbitui::prelude::*;\n");
 
         // Include imports from the script
         if let Some(imports) = extract_imports_from_script(&file.script) {

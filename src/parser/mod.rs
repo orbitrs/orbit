@@ -147,7 +147,7 @@ mod tests {
 </style>
 
 <script>
-use orbitrs::prelude::*;
+use orbitui::prelude::*;
 
 pub struct Greeting {
     name: String,

@@ -18,7 +18,7 @@ div {
 </style>
 
 <code lang="rust">
-use orbitrs::prelude::*;
+use orbitui::prelude::*;
 
 pub struct HelloWorld {
     message: String,
@@ -74,7 +74,7 @@ div {
 </style>
 
 <code lang="rust">
-use orbitrs::prelude::*;
+use orbitui::prelude::*;
 
 pub struct HelloWorld {
     message: String,

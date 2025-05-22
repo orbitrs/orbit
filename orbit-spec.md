@@ -45,7 +45,7 @@ button {
 </style>
 
 <code lang="rust">
-use orbitrs::prelude::*;
+use orbitui::prelude::*;
 
 pub struct Greeting {
     name: String,
