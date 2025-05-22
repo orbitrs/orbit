@@ -37,7 +37,6 @@ ensure_unique_name() {
   
   echo "$new_name" >> "$SEEN_PACKAGES"
 }
-}
 
 # Get initial package names for logging
 log "Checking package names"
@@ -89,6 +88,8 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/orbitrs/orbitrs"
 
 [workspace.dependencies]
+orbitrs = { path = "./orbitrs" }
+orbit-analyzer = { path = "./orbit-analyzer" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
