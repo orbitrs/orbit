@@ -14,8 +14,9 @@ permissions:
 
 jobs:  
   check:
-    name: Check
+    name: Format & Lint
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,6 +31,11 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
+          
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libfreetype6-dev
             
       - name: Check code formatting
         run: cargo fmt --all -- --check
@@ -39,23 +45,189 @@ jobs:
         
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     needs: check
+    timeout-minutes: 45
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-latest
+            target: x86_64-apple-darwin
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
       
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+      
+      - name: Install system dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libfreetype6-dev
+          
+      - name: Run tests
+        run: cargo test --target ${{ matrix.target }} --all-features
+        
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    needs: check
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfontconfig1-dev libfreetype6-dev
+      
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
       
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: . -> target
       
+      - name: Generate code coverage
+        run: cargo llvm-cov --all-features --lcov --output-path lcov.info
+      
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: lcov.info
+          fail_ci_if_error: false
+  
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    needs: check
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit
+      
+      - name: Run security audit
+        run: cargo audit
+        
+  outdated-dependencies:
+    name: Check Outdated Dependencies
+    runs-on: ubuntu-latest
+    needs: check
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install cargo-outdated
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-outdated
+      
+      - name: Check for outdated dependencies
+        run: cargo outdated --exit-code 0
+        
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+    needs: check
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      
       - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y libfontconfig1-dev libfreetype6-dev
+      
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        
+      - name: Cache dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+      
+      - name: Install cargo-criterion
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-criterion
+      
+      - name: Run benchmarks
+        run: |
+          # Create benchmarks directory if it doesn't exist
+          mkdir -p benches
           
-      - name: Run tests
-        run: cargo test --all-features
+          # Create a simple benchmark file if it doesn't exist
+          if [ ! -f benches/basic.rs ]; then
+            cat > benches/basic.rs << 'EOF'
+            use criterion::{criterion_group, criterion_main, Criterion};
+            
+            fn parser_benchmark(c: &mut Criterion) {
+                c.bench_function("parse orbit file", |b| {
+                    b.iter(|| {
+                        let content = r#"
+            <template>
+              <div>{{ label }}</div>
+            </template>
+            <script>
+            component Button {
+              props {
+                label: string;
+              }
+            }
+            </script>
+            <style>
+            .button {}
+            </style>
+            "#;
+                        orbitrs::parser::OrbitParser::parse(content).unwrap()
+                    });
+                });
+            }
+            
+            criterion_group!(benches, parser_benchmark);
+            criterion_main!(benches);
+            EOF
+          fi
+          
+          # Add criterion dependency if it doesn't exist
+          if ! grep -q "criterion" Cargo.toml; then
+            echo -e "\n[dev-dependencies]\ncriterion = \"0.5\"" >> Cargo.toml
+          fi
+          
+          # Run the benchmarks
+          cargo criterion --output-format=quiet
+      
+      - name: Store benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: target/criterion

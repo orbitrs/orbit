@@ -1,5 +1,10 @@
 # Orbit Framework
 
+![CI Status](https://github.com/orbitrs/orbitrs/actions/workflows/ci.yml/badge.svg)
+![Release Status](https://github.com/orbitrs/orbitrs/actions/workflows/release.yml/badge.svg)
+[![codecov](https://codecov.io/gh/orbitrs/orbitrs/branch/main/graph/badge.svg?token=CODECOV_TOKEN)](https://codecov.io/gh/orbitrs/orbitrs)
+[![crates.io](https://img.shields.io/crates/v/orbitrs.svg)](https://crates.io/crates/orbitrs)
+
 ## 🌌 Overview
 
 **Orbit** is a Rust-first, cross-platform UI framework that enables building **Web**, **Native**, and **Embedded** applications from a unified, single-source component format: `.orbit`. Inspired by frameworks like Razor, Vue, and Blazor, Orbit combines declarative markup with Rust logic for high-performance, flexible, and maintainable UI development.
