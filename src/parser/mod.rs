@@ -79,11 +79,11 @@ impl OrbitParser {
                     current_section = None;
                     continue;
                 }
-                "<script>" => {
+                "<script>" | "<code>" | "<code lang=\"rust\">" => {
                     current_section = Some(Section::Script);
                     continue;
                 }
-                "</script>" => {
+                "</script>" | "</code>" => {
                     script = current_content.clone();
                     current_content.clear();
                     current_section = None;

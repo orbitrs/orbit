@@ -17,7 +17,7 @@ div {
 }
 </style>
 
-<script>
+<code lang="rust">
 use orbitrs::prelude::*;
 
 pub struct HelloWorld {
@@ -39,7 +39,7 @@ pub struct HelloWorldProps {
 }
 
 impl Props for HelloWorldProps {}
-</script>
+</code>
 "#;
 
         let result = OrbitParser::parse(content);
@@ -73,7 +73,7 @@ div {
 }
 </style>
 
-<script>
+<code lang="rust">
 use orbitrs::prelude::*;
 
 pub struct HelloWorld {
@@ -95,7 +95,7 @@ pub struct HelloWorldProps {
 }
 
 impl Props for HelloWorldProps {}
-</script>
+</code>
 "#;
 
         let orbit_file = OrbitParser::parse(content).unwrap();

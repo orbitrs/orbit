@@ -44,7 +44,7 @@ button {
 }
 </style>
 
-<script>
+<code lang="rust">
 use orbitrs::prelude::*;
 
 pub struct Greeting {
