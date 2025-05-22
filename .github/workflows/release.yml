@@ -258,14 +258,26 @@ jobs:
           cp Cargo.toml aarch64-build/
           cp Cargo.lock aarch64-build/ || echo "No Cargo.lock found"
           
-          # Instead of copying entire directories, create symbolic links
-          # This saves space and ensures any changes are reflected
-          for dir in src examples; do
-            if [ -d "$dir" ]; then
-              ln -s "../$dir" "aarch64-build/$dir"
-              echo "Created symlink for $dir"
-            fi
-          done
+          # Create a complete source copy rather than using symbolic links
+          # Docker container can't resolve symlinks properly
+          echo "Creating complete source copy for aarch64 build"
+          
+          # Copy all source files
+          mkdir -p aarch64-build/src
+          cp -R src/* aarch64-build/src/
+          
+          # Copy examples directory if it exists
+          if [ -d "examples" ]; then
+            mkdir -p aarch64-build/examples
+            cp -R examples/* aarch64-build/examples/
+          fi
+          
+          # Verify lib.rs was copied correctly
+          echo "Verifying lib.rs was copied:"
+          ls -la aarch64-build/src/lib.rs || echo "ERROR: lib.rs not found in aarch64-build/src/"
+          
+          # Fix permissions to ensure files are accessible in container
+          chmod -R a+rx aarch64-build
           
           cd aarch64-build
           
@@ -301,22 +313,37 @@ jobs:
             # Build with cross using the specialized Cargo.toml
             cd aarch64-build
             
-            # Create symbolic link to Cross.toml in the root directory
-            ln -sf ../Cross.toml ./Cross.toml
+            # Copy Cross.toml with full path to ensure it's found
+            cp -f "$(pwd)/../Cross.toml" ./Cross.toml
             
             # Verify the Cross.toml file exists and show its contents
             echo "Verifying Cross.toml file:"
             ls -la Cross.toml
             cat Cross.toml
             
+            # Verify source files exist and have correct permissions
+            echo "Verifying source files:"
+            ls -la src/lib.rs
+            # Ensure files are readable
+            chmod -R a+r src
+            
+            # Create .cargo/config.toml with proper formatting
+            mkdir -p .cargo
+            echo '[build]' > .cargo/config.toml
+            echo 'target-dir = "target"' >> .cargo/config.toml
+            echo '' >> .cargo/config.toml
+            echo "[target.${{ matrix.target }}]" >> .cargo/config.toml
+            echo 'linker = "aarch64-linux-gnu-gcc"' >> .cargo/config.toml
+            
             # Determine number of cores for parallel compilation
             JOBS=$(nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)
             echo "Using $JOBS parallel jobs for compilation"
             
+            # Run cross build with verbose output
+            echo "Running cross build with target ${{ matrix.target }}"
             cross build --release --target ${{ matrix.target }} \
               --no-default-features \
               --features="skia,gl" \
-              -j $JOBS \
               --verbose
             
             # Copy compiled artifacts back to the expected location
