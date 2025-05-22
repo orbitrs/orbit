@@ -186,51 +186,54 @@ jobs:
         with:
           tool: cargo-criterion
       
-      - name: Run benchmarks
+      - name: Setup benchmark directory
+        run: mkdir -p benches
+
+      - name: Create benchmark file
         run: |
-          # Create benchmarks directory if it doesn't exist
-          mkdir -p benches
-          
-          # Create a simple benchmark file if it doesn't exist
-          if [ ! -f benches/basic.rs ]; then
-            cat > benches/basic.rs << 'EOF'
-            use criterion::{criterion_group, criterion_main, Criterion};
-            
-            fn parser_benchmark(c: &mut Criterion) {
-                c.bench_function("parse orbit file", |b| {
-                    b.iter(|| {
-                        let content = r#"
-            <template>
-              <div>{{ label }}</div>
-            </template>
-            <script>
-            component Button {
-              props {
-                label: string;
-              }
-            }
-            </script>
-            <style>
-            .button {}
-            </style>
-            "#;
-                        orbitrs::parser::OrbitParser::parse(content).unwrap()
-                    });
-                });
-            }
-            
-            criterion_group!(benches, parser_benchmark);
-            criterion_main!(benches);
-            EOF
+          cat > benches/parser_benchmark.rs << 'EOF'
+use criterion::{criterion_group, criterion_main, Criterion};
+
+fn parser_benchmark(c: &mut Criterion) {
+    c.bench_function("parse orbit file", |b| {
+        b.iter(|| {
+            let content = r#"
+<template>
+  <div>{{ label }}</div>
+</template>
+<script>
+component Button {
+  props {
+    label: string;
+  }
+}
+</script>
+<style>
+.button {}
+</style>
+"#;
+            orbitrs::parser::OrbitParser::parse(content).unwrap()
+        });
+    });
+}
+
+criterion_group!(benches, parser_benchmark);
+criterion_main!(benches);
+EOF
+
+      - name: Configure benchmark dependencies
+        run: |
+          if ! grep -q '\[dev-dependencies\]' Cargo.toml; then
+            echo -e "\n[dev-dependencies]" >> Cargo.toml
           fi
-          
-          # Add criterion dependency if it doesn't exist
           if ! grep -q "criterion" Cargo.toml; then
-            echo -e "\n[dev-dependencies]\ncriterion = \"0.5\"" >> Cargo.toml
+            echo 'criterion = { version = "0.5", features = ["html_reports"] }' >> Cargo.toml
           fi
-          
-          # Run the benchmarks
-          RUSTFLAGS="--cfg=web_sys_unstable_apis" cargo criterion --output-format=quiet
+
+      - name: Run benchmarks
+        env:
+          RUSTFLAGS: "--cfg=web_sys_unstable_apis"
+        run: cargo criterion --output-format=quiet
       
       - name: Store benchmark results
         uses: actions/upload-artifact@v4
