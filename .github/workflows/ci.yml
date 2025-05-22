@@ -190,36 +190,36 @@ jobs:
         run: mkdir -p benches
 
       - name: Create benchmark file
-        run: |
-          cat > benches/parser_benchmark.rs << 'EOF'
-use criterion::{criterion_group, criterion_main, Criterion};
+        run: >
+          cat > benches/parser_benchmark.rs << 'EOL'
+          use criterion::{criterion_group, criterion_main, Criterion};
 
-fn parser_benchmark(c: &mut Criterion) {
-    c.bench_function("parse orbit file", |b| {
-        b.iter(|| {
-            let content = r#"
-<template>
-  <div>{{ label }}</div>
-</template>
-<script>
-component Button {
-  props {
-    label: string;
-  }
-}
-</script>
-<style>
-.button {}
-</style>
-"#;
-            orbitrs::parser::OrbitParser::parse(content).unwrap()
-        });
-    });
-}
+          fn parser_benchmark(c: &mut Criterion) {
+              c.bench_function("parse orbit file", |b| {
+                  b.iter(|| {
+                      let content = r#"
+          <template>
+            <div>{{ label }}</div>
+          </template>
+          <script>
+          component Button {
+            props {
+              label: string;
+            }
+          }
+          </script>
+          <style>
+          .button {}
+          </style>
+          "#;
+                      orbitrs::parser::OrbitParser::parse(content).unwrap()
+                  });
+              });
+          }
 
-criterion_group!(benches, parser_benchmark);
-criterion_main!(benches);
-EOF
+          criterion_group!(benches, parser_benchmark);
+          criterion_main!(benches);
+          EOL
 
       - name: Configure benchmark dependencies
         run: |
