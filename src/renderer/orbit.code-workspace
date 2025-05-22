@@ -7,7 +7,7 @@
 			"path": "../../../docs"
 		},
 		{
-			"path": "../../../orbit-analyzer"
+			"path": "../../../orlint"
 		},
 		{
 			"path": "../../../orbit-workflows"

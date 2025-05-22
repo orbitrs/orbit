@@ -42,22 +42,22 @@ ensure_unique_name() {
 log "Checking package names"
 ORBIT_NAME=$(get_package_name "orbitrs")
 ORBITON_NAME=$(get_package_name "orbiton")
-ANALYZER_NAME=$(get_package_name "orbit-analyzer")
+ANALYZER_NAME=$(get_package_name "orlint")
 
 echo "Initial package names:"
 echo "orbit: $ORBIT_NAME"
 echo "orbiton: $ORBITON_NAME"
-echo "orbit-analyzer: $ANALYZER_NAME"
+echo "orlint: $ANALYZER_NAME"
 
 # Ensure unique names for all packages
 ensure_unique_name "orbitrs"
 ensure_unique_name "orbiton"
-ensure_unique_name "orbit-analyzer"
+ensure_unique_name "orlint"
 
 echo "Final package names:"
 echo "orbit: $(get_package_name "orbitrs")"
 echo "orbiton: $(get_package_name "orbiton")"
-echo "orbit-analyzer: $(get_package_name "orbit-analyzer")"
+echo "orlint: $(get_package_name "orlint")"
 
 rm -f "$SEEN_PACKAGES"
 
@@ -66,7 +66,7 @@ log "Updating dependency paths"
 if [ -f "orbiton/Cargo.toml" ]; then
   log "Updating orbiton's dependencies"
   sed -i.bak 's#orbit = { git = "https://github.com/orbitrs/orbit.git" }#orbit = { path = "../orbitrs" }#' orbiton/Cargo.toml
-  sed -i.bak 's#orbit-analyzer = { git = "https://github.com/orbitrs/orbit-analyzer.git" }#orbit-analyzer = { path = "../orbit-analyzer" }#' orbiton/Cargo.toml
+  sed -i.bak 's#orlint = { git = "https://github.com/orbitrs/orlint.git" }#orlint = { path = "../orlint" }#' orbiton/Cargo.toml
 fi
 
 # Create workspace Cargo.toml
@@ -76,7 +76,7 @@ cat > Cargo.toml << 'EOF'
 resolver = "2"
 members = [
     "orbitrs",
-    "orbit-analyzer",
+    "orlint",
     "orbiton"
 ]
 
@@ -89,7 +89,7 @@ repository = "https://github.com/orbitrs/orbitrs"
 
 [workspace.dependencies]
 orbitrs = { path = "./orbitrs" }
-orbit-analyzer = { path = "./orbit-analyzer" }
+orlint = { path = "./orlint" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "1.0"
