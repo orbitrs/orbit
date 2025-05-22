@@ -1,7 +1,6 @@
 // Input component for OrbitKit
 
 use crate::component::{Component, ComponentError, Context, Node};
-use std::any::Any;
 
 /// Input component
 #[derive(Debug)]

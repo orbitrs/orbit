@@ -38,18 +38,20 @@ pub struct LayoutProps {
 }
 
 /// Layout direction
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Direction {
     /// Horizontal layout
+    #[default]
     Row,
     /// Vertical layout
     Column,
 }
 
 /// Layout alignment
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Alignment {
     /// Align items at the start
+    #[default]
     Start,
     /// Align items at the center
     Center,
@@ -60,9 +62,10 @@ pub enum Alignment {
 }
 
 /// Layout justification
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum Justification {
     /// Justify items at the start
+    #[default]
     Start,
     /// Justify items at the center
     Center,
@@ -74,24 +77,6 @@ pub enum Justification {
     SpaceAround,
     /// Space evenly between items
     SpaceEvenly,
-}
-
-impl Default for Direction {
-    fn default() -> Self {
-        Direction::Row
-    }
-}
-
-impl Default for Alignment {
-    fn default() -> Self {
-        Alignment::Start
-    }
-}
-
-impl Default for Justification {
-    fn default() -> Self {
-        Justification::Start
-    }
 }
 
 impl Default for Layout {
