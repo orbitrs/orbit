@@ -190,7 +190,7 @@ jobs:
         run: mkdir -p benches
 
       - name: Create benchmark file
-        run: >
+        run: |
           cat > benches/parser_benchmark.rs << 'EOL'
           use criterion::{criterion_group, criterion_main, Criterion};
 
