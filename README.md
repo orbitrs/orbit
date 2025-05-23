@@ -2,7 +2,7 @@
 
 ![CI Status](https://github.com/orbitrs/orbitrs/actions/workflows/ci.yml/badge.svg)
 ![Release Status](https://github.com/orbitrs/orbitrs/actions/workflows/release.yml/badge.svg)
-[![codecov](https://codecov.io/gh/orbitrs/orbit/branch/main/graph/badge.svg?token=CODECOV_TOKEN)](https://codecov.io/gh/orbitrs/orbitrs)
+[![codecov](https://codecov.io/gh/orbitrs/orbit/branch/main/graph/badge.svg?token=CODECOV_TOKEN)](https://codecov.io/gh/orbitrs/orbit)
 [![crates.io](https://img.shields.io/crates/v/orbitrs.svg)](https://crates.io/crates/orbitrs)
 
 ## 🌌 Overview
