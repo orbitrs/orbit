@@ -2,6 +2,7 @@
 pub mod component;
 pub mod component_single;
 pub mod events;
+pub mod layout;
 pub mod parser;
 pub mod platform;
 pub mod renderer;
@@ -24,6 +25,11 @@ pub mod prelude {
     pub use crate::events::{
         delegation::{DelegatedEvent, EventDelegate, PropagationPhase},
         Event,
+    };
+    pub use crate::layout::{
+        AlignContent, AlignItems, Dimension, EdgeValues, FlexDirection, FlexWrap,
+        JustifyContent, LayoutEngine, LayoutNode, LayoutResult, LayoutStats, LayoutStyle,
+        Point, PositionType, Rect, Size,
     };
     pub use crate::renderer::Renderer;
     pub use crate::state::{

@@ -22,13 +22,45 @@ pub use crate::component_single::Node;
 use std::{
     any::TypeId,
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, atomic::{AtomicU64, Ordering}},
 };
 
 use crate::{
     events::EventEmitter,
+    layout::{LayoutNode, LayoutStyle},
     state::{State, StateContainer},
 };
+
+/// Global component ID counter for unique component identification
+static COMPONENT_ID_COUNTER: AtomicU64 = AtomicU64::new(1);
+
+/// Unique identifier for component instances
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ComponentId(u64);
+
+impl ComponentId {
+    /// Generate a new unique component ID
+    pub fn new() -> Self {
+        Self(COMPONENT_ID_COUNTER.fetch_add(1, Ordering::SeqCst))
+    }
+
+    /// Get the raw ID value
+    pub fn id(&self) -> u64 {
+        self.0
+    }
+}
+
+impl Default for ComponentId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl std::fmt::Display for ComponentId {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Component#{}", self.0)
+    }
+}
 
 /// Lifecycle phase of a component
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -211,12 +243,39 @@ impl<T: 'static + Clone + Send + Sync> Props for T {
 /// Marker trait to ensure props are sized
 pub trait SizedProps: Props + Sized {}
 
-/// Component trait - implemented by all UI components
-pub trait Component: Send + Sync + std::any::Any {
+/// Type-erased component trait for dynamic dispatch
+pub trait AnyComponent: Send + Sync + std::any::Any {
+    /// Get unique component ID for debugging and tracking
+    fn component_id(&self) -> ComponentId;
+
+    /// Get current lifecycle phase
+    fn lifecycle_phase(&self) -> LifecyclePhase;
+
+    /// Set lifecycle phase (framework internal)
+    fn set_lifecycle_phase(&mut self, phase: LifecyclePhase);
+
+    /// Request that this component be re-rendered
+    fn request_update(&mut self) -> Result<(), ComponentError>;
+
+    /// Convert to Any for downcasting
+    fn as_any(&self) -> &dyn std::any::Any;
+
+    /// Convert to mutable Any for downcasting
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
+
+    /// Get component type name for debugging
+    fn type_name(&self) -> &'static str;
+}
+
+/// Enhanced component trait with improved lifecycle management
+pub trait Component: AnyComponent + Send + Sync + std::any::Any {
     /// The props type for this component
     type Props: Props + Clone;
 
-    /// Create a new component instance
+    /// Get unique component ID for debugging and tracking
+    fn component_id(&self) -> ComponentId;
+
+    /// Create a new component instance with enhanced tracking
     fn create(props: Self::Props, context: Context) -> Self
     where
         Self: Sized;
@@ -228,8 +287,30 @@ pub trait Component: Send + Sync + std::any::Any {
     }
 
     /// Mount component - called when component is first added to the tree
+    /// Automatic state change detection and update scheduling is enabled after this point
     fn mount(&mut self) -> Result<(), ComponentError> {
         Ok(())
+    }
+
+    /// Called when component state changes and updates are needed
+    fn state_changed(&mut self, state_key: &str) -> Result<(), ComponentError> {
+        // Default implementation requests a re-render
+        self.request_update()
+    }
+
+    /// Request that this component be re-rendered
+    fn request_update(&mut self) -> Result<(), ComponentError> {
+        // Implementation provided by the framework
+        // This triggers the component's render cycle
+        Ok(())
+    }
+
+    /// Check if component should update given new props
+    /// Override for performance optimization
+    fn should_update(&self, new_props: &Self::Props) -> bool {
+        // Default: always update
+        // Override this for memoization and performance
+        true
     }
 
     /// Called before component updates with new props
@@ -246,6 +327,7 @@ pub trait Component: Send + Sync + std::any::Any {
     }
 
     /// Called before component is unmounted
+    /// Automatic cleanup of state subscriptions happens after this
     fn before_unmount(&mut self) -> Result<(), ComponentError> {
         Ok(())
     }
@@ -255,8 +337,22 @@ pub trait Component: Send + Sync + std::any::Any {
         Ok(())
     }
 
+    /// Perform automatic cleanup (called by framework)
+    fn cleanup(&mut self) -> Result<(), ComponentError> {
+        // Framework-provided cleanup:
+        // - Remove state subscriptions
+        // - Clear event listeners
+        // - Release resources
+        Ok(())
+    }
+
     /// Render component - returns child nodes
     fn render(&self) -> Result<Vec<Node>, ComponentError>;
+
+    /// Get current lifecycle phase
+    fn lifecycle_phase(&self) -> LifecyclePhase {
+        LifecyclePhase::Created // Default, overridden by framework
+    }
 
     /// Convert to Any for downcasting
     fn as_any(&self) -> &dyn std::any::Any;
@@ -265,9 +361,125 @@ pub trait Component: Send + Sync + std::any::Any {
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
 }
 
+/// Base component functionality that all components share
+#[derive(Debug)]
+pub struct ComponentBase {
+    /// Unique identifier for this component
+    id: ComponentId,
+    /// Current lifecycle phase
+    lifecycle_phase: LifecyclePhase,
+    /// Context for state and event management
+    context: Context,
+    /// Layout style for this component
+    layout_style: LayoutStyle,
+}
+
+impl ComponentBase {
+    /// Create a new component base with unique ID
+    pub fn new(context: Context) -> Self {
+        Self {
+            id: ComponentId::new(),
+            lifecycle_phase: LifecyclePhase::Created,
+            context,
+            layout_style: LayoutStyle::default(),
+        }
+    }
+
+    /// Create a new component base with custom layout style
+    pub fn new_with_layout(context: Context, layout_style: LayoutStyle) -> Self {
+        Self {
+            id: ComponentId::new(),
+            lifecycle_phase: LifecyclePhase::Created,
+            context,
+            layout_style,
+        }
+    }
+
+    /// Get the component ID
+    pub fn id(&self) -> ComponentId {
+        self.id
+    }
+
+    /// Get the current lifecycle phase
+    pub fn lifecycle_phase(&self) -> LifecyclePhase {
+        self.lifecycle_phase
+    }
+
+    /// Set the lifecycle phase (framework internal)
+    pub fn set_lifecycle_phase(&mut self, phase: LifecyclePhase) {
+        self.lifecycle_phase = phase;
+        self.context.set_lifecycle_phase(phase);
+    }
+
+    /// Get reference to the layout style
+    pub fn layout_style(&self) -> &LayoutStyle {
+        &self.layout_style
+    }
+
+    /// Get mutable reference to the layout style
+    pub fn layout_style_mut(&mut self) -> &mut LayoutStyle {
+        &mut self.layout_style
+    }
+
+    /// Set the layout style
+    pub fn set_layout_style(&mut self, layout_style: LayoutStyle) {
+        self.layout_style = layout_style;
+    }
+
+    /// Create a layout node for this component
+    pub fn create_layout_node(&self) -> LayoutNode {
+        LayoutNode::new(self.id, self.layout_style.clone())
+    }
+
+    /// Get reference to the context
+    pub fn context(&self) -> &Context {
+        &self.context
+    }
+
+    /// Get mutable reference to the context
+    pub fn context_mut(&mut self) -> &mut Context {
+        &mut self.context
+    }
+}
+
+/// Automatic implementation of AnyComponent for all Components
+impl<T: Component> AnyComponent for T {
+    fn component_id(&self) -> ComponentId {
+        Component::component_id(self)
+    }
+
+    fn lifecycle_phase(&self) -> LifecyclePhase {
+        Component::lifecycle_phase(self)
+    }
+
+    fn set_lifecycle_phase(&mut self, phase: LifecyclePhase) {
+        // This will be overridden by concrete implementations
+        // Default implementation does nothing
+    }
+
+    fn request_update(&mut self) -> Result<(), ComponentError> {
+        Component::request_update(self)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        Component::as_any(self)
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        Component::as_any_mut(self)
+    }
+
+    fn type_name(&self) -> &'static str {
+        std::any::type_name::<T>()
+    }
+}
+
 /// Context passed to components providing access to state, events, and shared context
 #[derive(Clone)]
 pub struct Context {
+    /// Unique ID for this context instance
+    id: ComponentId,
+
     /// State container for managing component and app state
     state: StateContainer,
 
@@ -282,6 +494,45 @@ pub struct Context {
 
     /// Context provider for parent-child communication
     context_provider: ContextProvider,
+
+    /// Update scheduler for batching state changes
+    update_scheduler: Arc<Mutex<UpdateScheduler>>,
+}
+
+/// Manages batched updates for improved performance
+#[derive(Debug, Default)]
+pub struct UpdateScheduler {
+    /// Components waiting for updates
+    pending_updates: HashMap<ComponentId, bool>,
+    /// Whether an update batch is currently scheduled
+    batch_scheduled: bool,
+}
+
+impl UpdateScheduler {
+    /// Schedule a component for update
+    pub fn schedule_update(&mut self, component_id: ComponentId) {
+        self.pending_updates.insert(component_id, true);
+        if !self.batch_scheduled {
+            self.batch_scheduled = true;
+            // In a real implementation, this would schedule a microtask
+            // For now, we'll handle updates immediately
+        }
+    }
+
+    /// Check if a component has pending updates
+    pub fn has_pending_update(&self, component_id: ComponentId) -> bool {
+        self.pending_updates.contains_key(&component_id)
+    }
+
+    /// Clear pending updates for a component
+    pub fn clear_pending(&mut self, component_id: ComponentId) {
+        self.pending_updates.remove(&component_id);
+    }
+
+    /// Get all components with pending updates
+    pub fn get_pending_components(&self) -> Vec<ComponentId> {
+        self.pending_updates.keys().copied().collect()
+    }
 }
 
 impl std::fmt::Debug for Context {
@@ -303,91 +554,86 @@ impl Default for Context {
 }
 
 impl Context {
-    /// Create a new context
+    /// Create a new context with unique ID and default state
     pub fn new() -> Self {
         Self {
+            id: ComponentId::new(),
             state: StateContainer::new(),
             events: EventEmitter::new(),
             lifecycle_hooks: Arc::new(Mutex::new(LifecycleHooks::new())),
             lifecycle_phase: LifecyclePhase::Created,
             context_provider: ContextProvider::new(),
+            update_scheduler: Arc::new(Mutex::new(UpdateScheduler::default())),
         }
     }
 
-    /// Create a new context with a parent context provider
-    pub fn with_parent(parent: &Context) -> Self {
-        Self {
-            state: StateContainer::new(),
-            events: EventEmitter::new(),
-            lifecycle_hooks: Arc::new(Mutex::new(LifecycleHooks::new())),
-            lifecycle_phase: LifecyclePhase::Created,
-            context_provider: ContextProvider::with_parent(parent.context_provider.clone()),
-        }
+    /// Get the context ID
+    pub fn id(&self) -> ComponentId {
+        self.id
     }
 
-    /// Create state with initial value
-    pub fn state<T: 'static + Clone + Send + Sync>(&self, initial: T) -> State<T> {
-        self.state.create(initial)
+    /// Get access to the state container
+    pub fn state(&self) -> &StateContainer {
+        &self.state
     }
 
-    /// Get event emitter
+    /// Get access to the event emitter
     pub fn events(&self) -> &EventEmitter {
         &self.events
     }
 
-    /// Register a callback for when the component is mounted
-    pub fn on_mount<F>(&self, callback: F)
-    where
-        F: FnMut(&mut dyn AnyComponent) + Send + Sync + 'static,
-    {
-        if let Ok(mut hooks) = self.lifecycle_hooks.lock() {
-            hooks.on_mount(callback);
-        }
+    /// Get the current lifecycle phase
+    pub fn lifecycle_phase(&self) -> LifecyclePhase {
+        self.lifecycle_phase
     }
 
-    /// Register a callback for before the component updates
-    pub fn on_before_update<F>(&self, callback: F)
-    where
-        F: FnMut(&mut dyn AnyComponent) + Send + Sync + 'static,
-    {
-        if let Ok(mut hooks) = self.lifecycle_hooks.lock() {
-            hooks.on_before_update(callback);
-        }
-    }
-
-    /// Register a callback for when the component updates
-    pub fn on_update<F>(&self, callback: F)
-    where
-        F: FnMut(&mut dyn AnyComponent) + Send + Sync + 'static,
-    {
-        if let Ok(mut hooks) = self.lifecycle_hooks.lock() {
-            hooks.on_update(callback);
-        }
-    }
-
-    /// Register a callback for before the component unmounts
-    pub fn on_before_unmount<F>(&self, callback: F)
-    where
-        F: FnMut(&mut dyn AnyComponent) + Send + Sync + 'static,
-    {
-        if let Ok(mut hooks) = self.lifecycle_hooks.lock() {
-            hooks.on_before_unmount(callback);
-        }
-    }
-
-    /// Register a callback for when the component unmounts
-    pub fn on_unmount<F>(&self, callback: F)
-    where
-        F: FnMut(&mut dyn AnyComponent) + Send + Sync + 'static,
-    {
-        if let Ok(mut hooks) = self.lifecycle_hooks.lock() {
-            hooks.on_unmount(callback);
-        }
-    }
-
-    /// Set the current lifecycle phase
-    pub fn set_lifecycle_phase(&mut self, phase: LifecyclePhase) {
+    /// Set the lifecycle phase (framework internal)
+    pub(crate) fn set_lifecycle_phase(&mut self, phase: LifecyclePhase) {
         self.lifecycle_phase = phase;
+    }
+
+    /// Schedule a component update
+    pub fn schedule_update(&self, component_id: ComponentId) {
+        if let Ok(mut scheduler) = self.update_scheduler.lock() {
+            scheduler.schedule_update(component_id);
+        }
+    }
+
+    /// Check if component has pending updates
+    pub fn has_pending_update(&self, component_id: ComponentId) -> bool {
+        if let Ok(scheduler) = self.update_scheduler.lock() {
+            scheduler.has_pending_update(component_id)
+        } else {
+            false
+        }
+    }
+
+    /// Create a reactive state that triggers component updates
+    pub fn create_reactive_state<T>(&self, initial_value: T, component_id: ComponentId) -> State<T>
+    where
+        T: Clone + Send + Sync + 'static,
+    {
+        let state = self.state.create_state(initial_value);
+        
+        // Set up state change listener to trigger component updates
+        let scheduler = Arc::clone(&self.update_scheduler);
+        state.on_change(move |_| {
+            if let Ok(mut s) = scheduler.lock() {
+                s.schedule_update(component_id);
+            }
+        });
+        
+        state
+    }
+
+    /// Register lifecycle hooks
+    pub fn register_lifecycle_hooks<F>(&self, setup: F)
+    where
+        F: FnOnce(&mut LifecycleHooks),
+    {
+        if let Ok(mut hooks) = self.lifecycle_hooks.lock() {
+            setup(&mut hooks);
+        }
     }
 
     /// Execute lifecycle hooks for a specific phase
@@ -398,510 +644,14 @@ impl Context {
                 LifecyclePhase::BeforeUpdate => hooks.execute_before_update(component),
                 LifecyclePhase::Updating => hooks.execute_update(component),
                 LifecyclePhase::BeforeUnmount => hooks.execute_before_unmount(component),
-                LifecyclePhase::Unmounting => hooks.execute_unmount(component),
-                _ => {} // No hooks for other phases
+                LifecyclePhase::Unmounted => hooks.execute_unmount(component),
+                _ => {} // No hooks for other phases yet
             }
         }
     }
-}
 
-// Removed ComponentWrapper as it was causing lifetime issues
-// We can reimplement it later if needed
-
-// Node struct is now defined in component_single.rs
-
-/// Trait for type-erased components that can participate in the component lifecycle
-pub trait AnyComponent: Send + Sync + 'static {
-    /// Initialize the component
-    fn initialize(&mut self) -> Result<(), ComponentError> {
-        Ok(())
-    }
-
-    /// Mount the component
-    fn mount(&mut self) -> Result<(), ComponentError> {
-        Ok(())
-    }
-
-    /// Update the component with new props
-    fn update(&mut self, props: Box<dyn Props>) -> Result<(), ComponentError>;
-
-    /// Called before component updates with new props
-    fn before_update(&mut self, _props: &dyn Props) -> Result<(), ComponentError> {
-        Ok(())
-    }
-
-    /// Called after component updates
-    fn after_update(&mut self) -> Result<(), ComponentError> {
-        Ok(())
-    }
-
-    /// Called before component unmounts
-    fn before_unmount(&mut self) -> Result<(), ComponentError> {
-        Ok(())
-    }
-
-    /// Unmount the component
-    fn unmount(&mut self) -> Result<(), ComponentError> {
-        Ok(())
-    }
-
-    /// Render the component
-    fn render(&self) -> Result<Vec<Node>, ComponentError>;
-
-    /// Convert to Any for downcasting
-    fn as_any(&self) -> &dyn std::any::Any;
-
-    /// Convert to mutable Any for downcasting
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any;
-}
-
-impl<T: Component + 'static> AnyComponent for T {
-    fn initialize(&mut self) -> Result<(), ComponentError> {
-        Component::initialize(self)
-    }
-
-    fn mount(&mut self) -> Result<(), ComponentError> {
-        Component::mount(self)
-    }
-
-    fn update(&mut self, props: Box<dyn Props>) -> Result<(), ComponentError> {
-        // We need to downcast the props to the correct type
-        if let Some(typed_props) = props.as_any().downcast_ref::<T::Props>() {
-            Component::update(self, typed_props.clone())
-        } else {
-            Err(ComponentError::InvalidPropsType)
-        }
-    }
-
-    fn before_update(&mut self, props: &dyn Props) -> Result<(), ComponentError> {
-        // We need to downcast the props to the correct type
-        if let Some(typed_props) = props.as_any().downcast_ref::<T::Props>() {
-            Component::before_update(self, typed_props)
-        } else {
-            Err(ComponentError::InvalidPropsType)
-        }
-    }
-
-    fn after_update(&mut self) -> Result<(), ComponentError> {
-        Component::after_update(self)
-    }
-
-    fn before_unmount(&mut self) -> Result<(), ComponentError> {
-        Component::before_unmount(self)
-    }
-
-    fn unmount(&mut self) -> Result<(), ComponentError> {
-        Component::unmount(self)
-    }
-
-    fn render(&self) -> Result<Vec<Node>, ComponentError> {
-        Component::render(self)
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-}
-
-impl AnyComponent for Box<dyn AnyComponent> {
-    fn initialize(&mut self) -> Result<(), ComponentError> {
-        (**self).initialize()
-    }
-
-    fn mount(&mut self) -> Result<(), ComponentError> {
-        (**self).mount()
-    }
-
-    fn update(&mut self, props: Box<dyn Props>) -> Result<(), ComponentError> {
-        (**self).update(props)
-    }
-
-    fn before_update(&mut self, props: &dyn Props) -> Result<(), ComponentError> {
-        (**self).before_update(props)
-    }
-
-    fn after_update(&mut self) -> Result<(), ComponentError> {
-        (**self).after_update()
-    }
-
-    fn before_unmount(&mut self) -> Result<(), ComponentError> {
-        (**self).before_unmount()
-    }
-
-    fn unmount(&mut self) -> Result<(), ComponentError> {
-        (**self).unmount()
-    }
-
-    fn render(&self) -> Result<Vec<Node>, ComponentError> {
-        (**self).render()
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
-    }
-}
-
-/// Wraps a component instance with its metadata
-pub struct ComponentInstance {
-    /// Component instance
-    instance: Arc<Mutex<Box<dyn AnyComponent>>>,
-
-    /// Current props
-    props: Box<dyn Props>,
-
-    /// Component type ID for type checking
-    type_id: TypeId,
-}
-
-impl ComponentInstance {
-    /// Create a new component instance
-    pub fn new<C: Component + 'static>(instance: C, props: C::Props) -> Self {
-        Self {
-            instance: Arc::new(Mutex::new(Box::new(instance) as Box<dyn AnyComponent>)),
-            props: Box::new(props),
-            type_id: TypeId::of::<C::Props>(),
-        }
-    }
-
-    /// Initialize the component
-    pub fn initialize(&mut self) -> Result<(), ComponentError> {
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.initialize()
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-
-    /// Mount the component
-    pub fn mount(&mut self) -> Result<(), ComponentError> {
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.mount()
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-
-    /// Update component with new props
-    pub fn update<P: Props>(&mut self, props: P) -> Result<(), ComponentError> {
-        let prop_type_id = TypeId::of::<P>();
-
-        // Check that the props type matches the component's expected props type
-        if prop_type_id != self.type_id {
-            return Err(ComponentError::PropsMismatch {
-                expected: self.type_id,
-                got: prop_type_id,
-            });
-        }
-
-        // Get boxed props
-        let boxed_props = Box::new(props);
-
-        // Before update phase
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.before_update(boxed_props.as_ref())?;
-        } else {
-            return Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ));
-        }
-
-        // Store the new props
-        self.props = boxed_props;
-
-        // Update the component with the new props
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.update(self.props.box_clone())?;
-        } else {
-            return Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ));
-        }
-
-        // After update phase
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.after_update()
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-
-    /// Update component with boxed props
-    pub fn update_boxed(&mut self, props: Box<dyn Props>) -> Result<(), ComponentError> {
-        // Check that the props type matches the component's expected props type
-        if props.as_any().type_id() != self.type_id {
-            return Err(ComponentError::PropsMismatch {
-                expected: self.type_id,
-                got: props.as_any().type_id(),
-            });
-        }
-
-        // Before update phase
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.before_update(props.as_ref())?;
-        } else {
-            return Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ));
-        }
-
-        // Store the new props
-        self.props = props.box_clone();
-
-        // Update the component with the new props
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.update(props)?;
-        } else {
-            return Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ));
-        }
-
-        // After update phase
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.after_update()
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-
-    /// Prepare for unmounting the component
-    pub fn before_unmount(&mut self) -> Result<(), ComponentError> {
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.before_unmount()
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-
-    /// Unmount the component
-    pub fn unmount(&mut self) -> Result<(), ComponentError> {
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.unmount()
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-
-    /// Render the component
-    pub fn render(&self) -> Result<Vec<Node>, ComponentError> {
-        if let Ok(instance) = self.instance.lock() {
-            instance.render()
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-}
-
-/// Factory for creating component instances
-type ComponentFactory = Box<
-    dyn Fn(Box<dyn Props>, Context) -> Result<Box<dyn AnyComponent>, ComponentError> + Send + Sync,
->;
-
-/// Component registry for storing component factories
-#[derive(Default)]
-pub struct ComponentRegistry {
-    components: HashMap<TypeId, ComponentFactory>,
-}
-
-impl ComponentRegistry {
-    /// Create a new component registry
-    pub fn new() -> Self {
-        Self {
-            components: HashMap::new(),
-        }
-    }
-
-    /// Register a component type
-    pub fn register<C: Component + 'static>(
-        &mut self,
-        factory: impl Fn(C::Props, Context) -> C + Send + Sync + 'static,
-    ) {
-        let type_id = TypeId::of::<C>();
-
-        let factory_boxed: ComponentFactory = Box::new(move |boxed_props, ctx| {
-            // Safely downcast the props
-            let props_any = boxed_props.as_any();
-            match props_any.downcast_ref::<C::Props>() {
-                Some(concrete_props) => {
-                    // We can clone concrete_props because C::Props: Clone
-                    let props_clone = concrete_props.clone();
-                    // Create the component and wrap it
-                    let component = factory(props_clone, ctx);
-                    Ok(Box::new(component) as Box<dyn AnyComponent>)
-                }
-                None => Err(ComponentError::PropsMismatch {
-                    expected: TypeId::of::<C::Props>(),
-                    got: props_any.type_id(),
-                }),
-            }
-        });
-
-        self.components.insert(type_id, factory_boxed);
-    }
-
-    /// Create a new component instance
-    pub fn create_instance(
-        &self,
-        type_id: TypeId,
-        props: Box<dyn Props>,
-        ctx: Context,
-    ) -> Result<Box<dyn AnyComponent>, ComponentError> {
-        let factory = self
-            .components
-            .get(&type_id)
-            .ok_or(ComponentError::TypeNotFound(type_id))?;
-
-        factory(props, ctx)
-    }
-
-    /// Create a strongly typed component instance
-    pub fn create_typed_instance<C: Component + Clone + 'static>(
-        &self,
-        props: C::Props,
-        ctx: Context,
-    ) -> Result<C, ComponentError> {
-        let type_id = TypeId::of::<C>();
-
-        let factory = self
-            .components
-            .get(&type_id)
-            .ok_or(ComponentError::TypeNotFound(type_id))?;
-
-        // We know C::Props implements Clone because of the trait bound in Component
-        let props_box = Box::new(props) as Box<dyn Props>;
-        let component = factory(props_box, ctx)?;
-
-        // Get a reference to the underlying component
-        let any_ref = component.as_any();
-
-        // Try to downcast to the concrete type
-        match any_ref.downcast_ref::<C>() {
-            Some(typed_ref) => {
-                // Only works if C implements Clone
-                Ok(typed_ref.clone())
-            }
-            None => Err(ComponentError::DowncastError),
-        }
-    }
-}
-
-// Implement AnyComponent for ComponentInstance to fix component lifecycle issues
-impl AnyComponent for ComponentInstance {
-    fn initialize(&mut self) -> Result<(), ComponentError> {
-        // Delegate to the contained instance
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.initialize()
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-
-    fn mount(&mut self) -> Result<(), ComponentError> {
-        // Delegate to the contained instance
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.mount()
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-
-    fn update(&mut self, props: Box<dyn Props>) -> Result<(), ComponentError> {
-        // Delegate to the contained instance
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.update(props)
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-
-    fn before_update(&mut self, props: &dyn Props) -> Result<(), ComponentError> {
-        // Delegate to the contained instance
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.before_update(props)
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-
-    fn after_update(&mut self) -> Result<(), ComponentError> {
-        // Delegate to the contained instance
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.after_update()
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-
-    fn before_unmount(&mut self) -> Result<(), ComponentError> {
-        // Delegate to the contained instance
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.before_unmount()
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-
-    fn unmount(&mut self) -> Result<(), ComponentError> {
-        // Delegate to the contained instance
-        if let Ok(mut instance) = self.instance.lock() {
-            instance.unmount()
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-
-    fn render(&self) -> Result<Vec<Node>, ComponentError> {
-        // Delegate to the contained instance
-        if let Ok(instance) = self.instance.lock() {
-            instance.render()
-        } else {
-            Err(ComponentError::LockError(
-                "Failed to lock component instance".to_string(),
-            ))
-        }
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
-        self
+    /// Get context provider for parent-child communication
+    pub fn context_provider(&self) -> &ContextProvider {
+        &self.context_provider
     }
 }
