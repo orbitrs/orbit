@@ -539,8 +539,8 @@ impl<T: Component> AnyComponent for T {
     }
 
     fn set_lifecycle_phase(&mut self, _phase: LifecyclePhase) {
-        // This will be overridden by concrete implementations
         // Default implementation does nothing
+        // Concrete implementations can override this through AnyComponent if needed
     }
 
     fn request_update(&mut self) -> Result<(), ComponentError> {
