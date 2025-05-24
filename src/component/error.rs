@@ -5,7 +5,6 @@ use std::error::Error;
 use std::fmt;
 
 use crate::component::LifecyclePhase;
-use crate::state::SignalError;
 
 /// Errors that can occur during component operations
 #[derive(Debug)]
@@ -73,8 +72,8 @@ impl fmt::Display for ComponentError {
 impl Error for ComponentError {}
 
 // Conversion from SignalError to ComponentError
-impl From<SignalError> for ComponentError {
-    fn from(error: SignalError) -> Self {
+impl From<crate::state::SignalError> for ComponentError {
+    fn from(error: crate::state::SignalError) -> Self {
         ComponentError::ReactiveSystemError(error.to_string())
     }
 }
