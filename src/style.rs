@@ -202,7 +202,7 @@ impl std::fmt::Display for Stylesheet {
             }
         }
 
-        write!(f, "{}", result)
+        write!(f, "{result}")
     }
 }
 
@@ -1000,8 +1000,7 @@ impl StyleEngine {
                     Ok(FontWeight::Numeric(numeric))
                 } else {
                     Err(StyleError::ParseError(format!(
-                        "Invalid font weight: {}",
-                        value
+                        "Invalid font weight: {value}"
                     )))
                 }
             }
@@ -1018,8 +1017,7 @@ impl StyleEngine {
             "start" => Ok(TextAlign::Start),
             "end" => Ok(TextAlign::End),
             _ => Err(StyleError::ParseError(format!(
-                "Invalid text align: {}",
-                value
+                "Invalid text align: {value}"
             ))),
         }
     }
@@ -1135,15 +1133,15 @@ impl ComputedStyle {
     /// Get a specific property value from the computed style
     pub fn get_property(&self, name: &str) -> Option<String> {
         match name {
-            "color" => self.style.color.as_ref().map(|c| format!("{:?}", c)),
+            "color" => self.style.color.as_ref().map(|c| format!("{c:?}")),
             "background-color" => self
                 .style
                 .background_color
                 .as_ref()
-                .map(|c| format!("{:?}", c)),
+                .map(|c| format!("{c:?}")),
             "opacity" => self.style.opacity.map(|o| o.to_string()),
-            "font-size" => self.style.font_size.map(|f| format!("{}px", f)),
-            "font-weight" => self.style.font_weight.as_ref().map(|w| format!("{:?}", w)),
+            "font-size" => self.style.font_size.map(|f| format!("{f}px")),
+            "font-weight" => self.style.font_weight.as_ref().map(|w| format!("{w:?}")),
             _ => None,
         }
     }

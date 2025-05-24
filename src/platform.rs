@@ -212,7 +212,7 @@ pub mod desktop {
 
                     // Make the context current with the surface
                     let context = not_current_context.make_current(&surface).map_err(|e| {
-                        crate::Error::Platform(format!("Failed to make context current: {:?}", e))
+                        crate::Error::Platform(format!("Failed to make context current: {e:?}"))
                     })?;
 
                     (context, surface)
@@ -225,7 +225,7 @@ pub mod desktop {
             // Create the glium display from the context and surface
             let display =
                 glium::Display::from_context_surface(gl_context, gl_surface).map_err(|e| {
-                    crate::Error::Platform(format!("Failed to create Glium display: {:?}", e))
+                    crate::Error::Platform(format!("Failed to create Glium display: {e:?}"))
                 })?;
 
             self.display = Some(display);
@@ -303,13 +303,13 @@ pub mod desktop {
                         if let Err(e) = renderer_rc.borrow_mut().render(&node, &mut render_context)
                         {
                             // Use cloned Rc and borrow_mut()
-                            eprintln!("Rendering error: {}", e);
+                            eprintln!("Rendering error: {e}");
                         }
 
                         // Flush changes
                         if let Err(e) = renderer_rc.borrow_mut().flush() {
                             // Use cloned Rc and borrow_mut()
-                            eprintln!("Flush error: {}", e);
+                            eprintln!("Flush error: {e}");
                         }
 
                         // Finish drawing

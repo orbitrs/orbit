@@ -41,10 +41,10 @@ pub enum RendererError {
 impl fmt::Display for RendererError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            RendererError::SkiaError(msg) => write!(f, "Skia error: {}", msg),
-            RendererError::GlError(msg) => write!(f, "OpenGL error: {}", msg),
-            RendererError::InitError(msg) => write!(f, "Initialization error: {}", msg),
-            RendererError::GeneralError(msg) => write!(f, "Renderer error: {}", msg),
+            RendererError::SkiaError(msg) => write!(f, "Skia error: {msg}"),
+            RendererError::GlError(msg) => write!(f, "OpenGL error: {msg}"),
+            RendererError::InitError(msg) => write!(f, "Initialization error: {msg}"),
+            RendererError::GeneralError(msg) => write!(f, "Renderer error: {msg}"),
         }
     }
 }
@@ -253,7 +253,7 @@ impl crate::renderer::Renderer for SkiaRenderer {
         // Use default dimensions for now
         if self.state.is_none() {
             self.init_skia(800, 600)
-                .map_err(|e| crate::Error::Renderer(format!("{}", e)))?;
+                .map_err(|e| crate::Error::Renderer(format!("{e}")))?;
         }
         Ok(())
     }
@@ -263,12 +263,12 @@ impl crate::renderer::Renderer for SkiaRenderer {
         if self.state.is_none() {
             // Use default dimensions for now
             self.init_skia(800, 600)
-                .map_err(|e| crate::Error::Renderer(format!("{}", e)))?;
+                .map_err(|e| crate::Error::Renderer(format!("{e}")))?;
         }
 
         // Simple implementation - just draw a test circle for now
         self.draw_test_circle()
-            .map_err(|e| crate::Error::Renderer(format!("{}", e)))
+            .map_err(|e| crate::Error::Renderer(format!("{e}")))
     }
 
     fn flush(&mut self) -> Result<(), crate::Error> {
