@@ -3,10 +3,7 @@
 //! This module provides a fine-grained reactive system based on reactive scopes
 //! rather than global registries, eliminating circular dependency issues.
 
-use std::{
-    cell::{Ref, RefCell, RefMut},
-    rc::Rc,
-};
+use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 /// Errors that can occur in the reactive system
 #[derive(Debug, Clone)]
@@ -56,31 +53,38 @@ impl Default for ReactiveScope {
 
 /// A reactive signal that holds a value
 pub struct Signal<T> {
-    pub value: Rc<RefCell<T>>,
-    dirty: RefCell<bool>,
+    pub value: Arc<RwLock<T>>,
+    dirty: Arc<RwLock<bool>>,
 }
 
-impl<T> Signal<T> {
+// Explicit Send + Sync implementations
+unsafe impl<T: Send + Sync> Send for Signal<T> {}
+unsafe impl<T: Send + Sync> Sync for Signal<T> {}
+
+impl<T> Signal<T>
+where
+    T: Send + Sync + 'static,
+{
     /// Get the current value of the signal
-    pub fn get(&self) -> Ref<T> {
+    pub fn get(&self) -> RwLockReadGuard<T> {
         // TODO: Track this read for reactive dependencies
-        self.value.borrow()
+        self.value.read().unwrap()
     }
 
     /// Get a mutable reference to the signal's value
-    pub fn get_mut(&self) -> RefMut<T> {
-        self.value.borrow_mut()
+    pub fn get_mut(&self) -> RwLockWriteGuard<T> {
+        self.value.write().unwrap()
     }
 
     /// Set the signal's value and trigger updates
     pub fn set(&self, value: T) -> Result<(), SignalError> {
         {
-            let mut val = self.value.borrow_mut();
+            let mut val = self.value.write().unwrap();
             *val = value;
         }
 
         // Mark as dirty and trigger updates
-        *self.dirty.borrow_mut() = true;
+        *self.dirty.write().unwrap() = true;
 
         // TODO: In a full implementation, this would trigger dependent updates
         Ok(())
@@ -92,41 +96,42 @@ impl<T> Signal<T> {
         F: FnOnce(&mut T),
     {
         {
-            let mut value = self.value.borrow_mut();
+            let mut value = self.value.write().unwrap();
             f(&mut *value);
         }
         self.set_dirty()
     }
 
     fn set_dirty(&self) -> Result<(), SignalError> {
-        *self.dirty.borrow_mut() = true;
+        *self.dirty.write().unwrap() = true;
         Ok(())
     }
 }
 
 /// A reactive effect that runs when its dependencies change
 pub struct Effect<F> {
-    callback: RefCell<Option<F>>,
-    dirty: RefCell<bool>,
+    callback: Mutex<Option<F>>,
+    dirty: Arc<RwLock<bool>>,
 }
 
-impl<F> Effect<F>
-where
-    F: FnMut() + 'static,
-{
+// Explicit Send + Sync implementations
+unsafe impl<F: Send + Sync> Send for Effect<F> {}
+unsafe impl<F: Send + Sync> Sync for Effect<F> {}
+
+impl Effect<Box<dyn FnMut() + Send + Sync + 'static>> {
     /// Execute the effect
     pub fn run(&self) -> Result<(), SignalError> {
-        // Use a scope to ensure borrows are dropped before we borrow again
+        // Check if we should run
         let should_run = {
-            let callback_ref = self.callback.borrow();
+            let callback_ref = self.callback.lock().unwrap();
             callback_ref.is_some()
         };
 
         if should_run {
-            let mut callback = self.callback.borrow_mut().take().unwrap();
+            let mut callback = self.callback.lock().unwrap().take().unwrap();
             callback();
-            *self.callback.borrow_mut() = Some(callback);
-            *self.dirty.borrow_mut() = false;
+            *self.callback.lock().unwrap() = Some(callback);
+            *self.dirty.write().unwrap() = false;
         }
         Ok(())
     }
@@ -134,39 +139,45 @@ where
 
 /// A computed value that derives from other reactive values
 pub struct ReactiveComputed<T, F> {
-    value: RefCell<Option<T>>,
-    compute_fn: RefCell<Option<F>>,
-    dirty: RefCell<bool>,
+    value: Arc<RwLock<Option<T>>>,
+    compute_fn: Mutex<Option<F>>,
+    dirty: Arc<RwLock<bool>>,
 }
 
-impl<T, F> ReactiveComputed<T, F>
+// Explicit Send + Sync implementations
+unsafe impl<T: Send + Sync, F: Send + Sync> Send for ReactiveComputed<T, F> {}
+unsafe impl<T: Send + Sync, F: Send + Sync> Sync for ReactiveComputed<T, F> {}
+
+impl<T> ReactiveComputed<T, Box<dyn FnMut() -> T + Send + Sync + 'static>>
 where
-    F: FnMut() -> T + 'static,
-    T: 'static,
+    T: Send + Sync + Clone + 'static,
 {
     /// Get the computed value, recalculating if necessary
-    pub fn get(&self) -> Result<Ref<T>, SignalError> {
-        if *self.dirty.borrow() || self.value.borrow().is_none() {
+    pub fn get(&self) -> Result<T, SignalError> {
+        if *self.dirty.read().unwrap() || self.value.read().unwrap().is_none() {
             self.recompute()?;
         }
 
-        Ref::filter_map(self.value.borrow(), |opt| opt.as_ref())
-            .map_err(|_| SignalError::InvalidState)
+        self.value
+            .read()
+            .unwrap()
+            .clone()
+            .ok_or(SignalError::InvalidState)
     }
 
     fn recompute(&self) -> Result<(), SignalError> {
-        // Use scope to avoid multiple borrows
+        // Check if we should compute
         let should_compute = {
-            let compute_ref = self.compute_fn.borrow();
+            let compute_ref = self.compute_fn.lock().unwrap();
             compute_ref.is_some()
         };
 
         if should_compute {
-            let mut compute_fn = self.compute_fn.borrow_mut().take().unwrap();
+            let mut compute_fn = self.compute_fn.lock().unwrap().take().unwrap();
             let new_value = compute_fn();
-            *self.value.borrow_mut() = Some(new_value);
-            *self.compute_fn.borrow_mut() = Some(compute_fn);
-            *self.dirty.borrow_mut() = false;
+            *self.value.write().unwrap() = Some(new_value);
+            *self.compute_fn.lock().unwrap() = Some(compute_fn);
+            *self.dirty.write().unwrap() = false;
         }
         Ok(())
     }
@@ -175,22 +186,27 @@ where
 /// Create a new signal with an initial value
 pub fn create_signal<T>(_scope: &ReactiveScope, initial_value: T) -> Signal<T>
 where
-    T: 'static,
+    T: Send + Sync + 'static,
 {
     Signal {
-        value: Rc::new(RefCell::new(initial_value)),
-        dirty: RefCell::new(false),
+        value: Arc::new(RwLock::new(initial_value)),
+        dirty: Arc::new(RwLock::new(false)),
     }
 }
 
 /// Create a new effect that runs when dependencies change
-pub fn create_effect<F>(_scope: &ReactiveScope, callback: F) -> Effect<F>
+pub fn create_effect<F>(
+    _scope: &ReactiveScope,
+    callback: F,
+) -> Effect<Box<dyn FnMut() + Send + Sync + 'static>>
 where
-    F: FnMut() + 'static,
+    F: FnMut() + Send + Sync + 'static,
 {
     let effect = Effect {
-        callback: RefCell::new(Some(callback)),
-        dirty: RefCell::new(true), // Start dirty to run on creation
+        callback: Mutex::new(Some(
+            Box::new(callback) as Box<dyn FnMut() + Send + Sync + 'static>
+        )),
+        dirty: Arc::new(RwLock::new(true)), // Start dirty to run on creation
     };
 
     // Run initially
@@ -199,15 +215,20 @@ where
 }
 
 /// Create a new computed value
-pub fn create_computed<T, F>(_scope: &ReactiveScope, compute_fn: F) -> ReactiveComputed<T, F>
+pub fn create_computed<T, F>(
+    _scope: &ReactiveScope,
+    compute_fn: F,
+) -> ReactiveComputed<T, Box<dyn FnMut() -> T + Send + Sync + 'static>>
 where
-    F: FnMut() -> T + 'static,
-    T: 'static,
+    F: FnMut() -> T + Send + Sync + 'static,
+    T: Send + Sync + Clone + 'static,
 {
     ReactiveComputed {
-        value: RefCell::new(None),
-        compute_fn: RefCell::new(Some(compute_fn)),
-        dirty: RefCell::new(true), // Start dirty to compute on first access
+        value: Arc::new(RwLock::new(None)),
+        compute_fn: Mutex::new(Some(
+            Box::new(compute_fn) as Box<dyn FnMut() -> T + Send + Sync + 'static>
+        )),
+        dirty: Arc::new(RwLock::new(true)), // Start dirty to compute on first access
     }
 }
 
@@ -235,15 +256,15 @@ mod tests {
     #[test]
     fn test_effect_creation() {
         let scope = ReactiveScope::new();
-        let counter = Rc::new(RefCell::new(0));
+        let counter = Arc::new(RwLock::new(0));
         let counter_clone = counter.clone();
 
         let _effect = create_effect(&scope, move || {
-            *counter_clone.borrow_mut() += 1;
+            *counter_clone.write().unwrap() += 1;
         });
 
         // Effect should run once on creation
-        assert_eq!(*counter.borrow(), 1);
+        assert_eq!(*counter.read().unwrap(), 1);
     }
 
     #[test]
@@ -252,8 +273,8 @@ mod tests {
         let signal = create_signal(&scope, 5);
         let signal_clone = signal.value.clone();
 
-        let computed = create_computed(&scope, move || *signal_clone.borrow() * 2);
+        let computed = create_computed(&scope, move || *signal_clone.read().unwrap() * 2);
 
-        assert_eq!(*computed.get().unwrap(), 10);
+        assert_eq!(computed.get().unwrap(), 10);
     }
 }
