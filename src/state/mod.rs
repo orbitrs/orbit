@@ -10,7 +10,7 @@
 mod reactive;
 
 pub use reactive::{
-    create_computed, create_effect, create_signal, Effect, Signal, SignalError, ThreadSafeSignal,
+    create_computed, create_effect, create_signal, Effect, ReactiveComputed, ReactiveScope, Signal, SignalError,
 };
 
 use std::{
