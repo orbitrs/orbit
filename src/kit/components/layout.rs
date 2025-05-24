@@ -1,11 +1,13 @@
 // Layout components for OrbitKit
 
-use crate::component::{Component, ComponentError, Context, Node};
+use crate::component::{Component, ComponentError, ComponentId, Context, Node};
 use std::any::Any;
 
 /// Layout component
 #[derive(Debug)]
 pub struct Layout {
+    /// Component ID for tracking
+    id: ComponentId,
     /// Layout direction (row, column)
     pub direction: Direction,
     /// Layout alignment
@@ -82,6 +84,7 @@ pub enum Justification {
 impl Default for Layout {
     fn default() -> Self {
         Self {
+            id: ComponentId::new(),
             direction: Direction::default(),
             align: Alignment::default(),
             justify: Justification::default(),
@@ -95,8 +98,13 @@ impl Default for Layout {
 impl Component for Layout {
     type Props = LayoutProps;
 
+    fn component_id(&self) -> ComponentId {
+        self.id
+    }
+
     fn create(props: Self::Props, _context: Context) -> Self {
         Self {
+            id: ComponentId::new(),
             direction: props.direction.unwrap_or_default(),
             align: props.align.unwrap_or_default(),
             justify: props.justify.unwrap_or_default(),

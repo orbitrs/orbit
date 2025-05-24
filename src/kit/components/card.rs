@@ -1,10 +1,12 @@
 // Card component for OrbitKit
 
-use crate::component::{Component, ComponentError, Context, Node};
+use crate::component::{Component, ComponentError, ComponentId, Context, Node};
 
 /// Card component
 #[derive(Debug)]
 pub struct Card {
+    /// Component ID for tracking
+    id: ComponentId,
     /// Card title
     pub title: Option<String>,
     /// Card elevation (shadow level)
@@ -39,6 +41,7 @@ pub struct CardProps {
 impl Default for Card {
     fn default() -> Self {
         Self {
+            id: ComponentId::new(),
             title: None,
             elevation: 1,
             border_radius: "4px".to_string(),
@@ -52,8 +55,13 @@ impl Default for Card {
 impl Component for Card {
     type Props = CardProps;
 
+    fn component_id(&self) -> ComponentId {
+        self.id
+    }
+
     fn create(props: Self::Props, _context: Context) -> Self {
         Self {
+            id: ComponentId::new(),
             title: props.title,
             elevation: props.elevation.unwrap_or(1),
             border_radius: props.border_radius.unwrap_or_else(|| "4px".to_string()),

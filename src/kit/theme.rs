@@ -1,6 +1,6 @@
 // Theme support for OrbitKit
 
-use crate::component::{Component, ComponentError, Context, Node};
+use crate::component::{Component, ComponentError, ComponentId, Context, Node};
 use std::any::Any;
 
 /// Theme for OrbitKit
@@ -51,6 +51,8 @@ impl Default for Theme {
 /// Theme provider component
 #[derive(Debug)]
 pub struct ThemeProvider {
+    /// Component ID for tracking
+    id: ComponentId,
     /// Theme
     pub theme: Theme,
     /// Child content
@@ -69,8 +71,13 @@ pub struct ThemeProviderProps {
 impl Component for ThemeProvider {
     type Props = ThemeProviderProps;
 
+    fn component_id(&self) -> ComponentId {
+        self.id
+    }
+
     fn create(props: Self::Props, _context: Context) -> Self {
         Self {
+            id: ComponentId::new(),
             theme: props.theme.unwrap_or_default(),
             children: props.children,
         }

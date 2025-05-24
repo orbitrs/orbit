@@ -1,6 +1,6 @@
 // Button component for OrbitKit
 
-use crate::component::{Component, ComponentError, Context, Node};
+use crate::component::{Component, ComponentError, ComponentId, Context, Node};
 use std::any::Any;
 
 /// Button size variants
@@ -44,6 +44,8 @@ pub enum ButtonVariant {
 /// ```
 #[derive(Debug)]
 pub struct Button {
+    /// Component ID for tracking
+    id: ComponentId,
     /// Text content of the button
     pub text: String,
     /// Visual style variant of the button
@@ -74,6 +76,7 @@ pub struct ButtonProps {
 impl Default for Button {
     fn default() -> Self {
         Self {
+            id: ComponentId::new(),
             text: String::new(),
             variant: ButtonVariant::Primary,
             disabled: false,
@@ -86,8 +89,13 @@ impl Default for Button {
 impl Component for Button {
     type Props = ButtonProps;
 
+    fn component_id(&self) -> ComponentId {
+        self.id
+    }
+
     fn create(props: Self::Props, _context: Context) -> Self {
         Self {
+            id: ComponentId::new(),
             text: props.text,
             variant: props.variant.unwrap_or(ButtonVariant::Primary),
             disabled: props.disabled.unwrap_or(false),

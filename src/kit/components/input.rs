@@ -1,10 +1,12 @@
 // Input component for OrbitKit
 
-use crate::component::{Component, ComponentError, Context, Node};
+use crate::component::{Component, ComponentError, ComponentId, Context, Node};
 
 /// Input component
 #[derive(Debug)]
 pub struct Input {
+    /// Component ID for tracking
+    id: ComponentId,
     /// Input type (text, password, email, etc.)
     pub input_type: String,
     /// Input value
@@ -51,6 +53,7 @@ pub struct InputProps {
 impl Default for Input {
     fn default() -> Self {
         Self {
+            id: ComponentId::new(),
             input_type: "text".to_string(),
             value: String::new(),
             placeholder: None,
@@ -67,8 +70,13 @@ impl Default for Input {
 impl Component for Input {
     type Props = InputProps;
 
+    fn component_id(&self) -> ComponentId {
+        self.id
+    }
+
     fn create(props: Self::Props, _context: Context) -> Self {
         Self {
+            id: ComponentId::new(),
             input_type: props.input_type.unwrap_or_else(|| "text".to_string()),
             value: props.value,
             placeholder: props.placeholder,
