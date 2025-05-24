@@ -36,6 +36,7 @@ pub mod prelude {
         create_computed, create_effect, create_signal, Computed, Effect, Signal, State,
         StateContainer,
     };
+    #[cfg(feature = "desktop")]
     pub use winit::event::MouseButton;
 }
 

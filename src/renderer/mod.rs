@@ -163,8 +163,17 @@ pub enum QualityLevel {
 pub fn create_renderer(renderer_type: RendererType) -> Result<Box<dyn Renderer>, crate::Error> {
     match renderer_type {
         RendererType::Skia => {
-            let renderer = SkiaRenderer::new();
-            Ok(Box::new(renderer))
+            #[cfg(feature = "skia")]
+            {
+                let renderer = SkiaRenderer::new();
+                Ok(Box::new(renderer))
+            }
+            #[cfg(not(feature = "skia"))]
+            {
+                Err(crate::Error::Renderer(
+                    "Skia renderer not supported in this build".to_string(),
+                ))
+            }
         }
         RendererType::Wgpu => {
             #[cfg(feature = "wgpu")]
@@ -222,8 +231,17 @@ pub fn create_renderer(renderer_type: RendererType) -> Result<Box<dyn Renderer>,
                 }
                 #[cfg(not(feature = "wgpu"))]
                 {
-                    let renderer = SkiaRenderer::new();
-                    Ok(Box::new(renderer))
+                    #[cfg(feature = "skia")]
+                    {
+                        let renderer = SkiaRenderer::new();
+                        Ok(Box::new(renderer))
+                    }
+                    #[cfg(not(feature = "skia"))]
+                    {
+                        Err(crate::Error::Renderer(
+                            "No renderer available - neither WGPU nor Skia enabled".to_string(),
+                        ))
+                    }
                 }
             }
         }

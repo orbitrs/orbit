@@ -37,6 +37,7 @@ impl<T: Any + Clone + 'static> Event for T {
 }
 
 /// Re-export winit event types
+#[cfg(feature = "desktop")]
 pub mod winit {
     pub use winit::event::{Event, MouseButton};
 }
