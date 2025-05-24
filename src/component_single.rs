@@ -45,3 +45,21 @@ impl Node {
         self.id
     }
 }
+
+impl Default for Node {
+    fn default() -> Self {
+        static mut NEXT_ID: usize = 0;
+        let id = unsafe {
+            let id = NEXT_ID;
+            NEXT_ID += 1;
+            id
+        };
+
+        Self {
+            component: None,
+            attributes: HashMap::new(),
+            children: Vec::new(),
+            id,
+        }
+    }
+}
