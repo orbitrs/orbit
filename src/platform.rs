@@ -94,12 +94,15 @@ pub mod desktop {
                 Ok(r) => r,
                 Err(e) => {
                     // Fall back to Skia renderer if Auto selection fails
-                    eprintln!("Failed to create Auto renderer: {}, falling back to Skia", e);
+                    eprintln!(
+                        "Failed to create Auto renderer: {}, falling back to Skia",
+                        e
+                    );
                     crate::renderer::create_renderer(RendererType::Skia)
                         .expect("Failed to create fallback Skia renderer")
                 }
             };
-            
+
             Self {
                 renderer: Rc::new(RefCell::new(renderer)), // Wrap in Rc<RefCell<...>>
                 display: None,
@@ -116,12 +119,15 @@ pub mod desktop {
                 Ok(r) => r,
                 Err(e) => {
                     // Fall back to Skia renderer if requested renderer fails
-                    eprintln!("Failed to create {:?} renderer: {}, falling back to Skia", renderer_type, e);
+                    eprintln!(
+                        "Failed to create {:?} renderer: {}, falling back to Skia",
+                        renderer_type, e
+                    );
                     crate::renderer::create_renderer(RendererType::Skia)
                         .expect("Failed to create fallback Skia renderer")
                 }
             };
-            
+
             Self {
                 renderer: Rc::new(RefCell::new(renderer)), // Wrap in Rc<RefCell<...>>
                 display: None,
@@ -293,7 +299,7 @@ pub mod desktop {
 
                         // Create a dummy node for demonstration
                         let node = crate::component::Node::default();
-                        
+
                         // We should construct a proper node tree based on the elapsed time
                         // and component definitions, but for now we're just using a dummy node
 

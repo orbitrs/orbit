@@ -268,7 +268,7 @@ impl crate::renderer::Renderer for SkiaRenderer {
         self.draw_test_circle()
             .map_err(|e| crate::Error::Renderer(format!("{}", e)))
     }
-    
+
     fn flush(&mut self) -> Result<(), crate::Error> {
         // Skia surface doesn't have a flush method like we were expecting
         // Instead, we'll create a snapshot which will finalize any pending drawing operations
@@ -280,7 +280,7 @@ impl crate::renderer::Renderer for SkiaRenderer {
             Ok(()) // No state to flush
         }
     }
-    
+
     fn cleanup(&mut self) -> Result<(), crate::Error> {
         // Set state to None to drop all resources
         self.state = None;

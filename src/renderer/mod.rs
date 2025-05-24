@@ -36,7 +36,7 @@ pub trait Renderer {
     fn flush(&mut self) -> Result<(), crate::Error> {
         Ok(()) // Default implementation does nothing
     }
-    
+
     /// Clean up resources
     fn cleanup(&mut self) -> Result<(), crate::Error> {
         Ok(()) // Default implementation does nothing

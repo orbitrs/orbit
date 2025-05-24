@@ -145,7 +145,7 @@ impl Renderer for WgpuRenderer {
         // Nothing to do here as initialization is done in the constructor
         Ok(())
     }
-    
+
     fn render(&mut self, _root: &Node) -> Result<(), Error> {
         // Get current surface texture
         if let Some(surface) = &self.surface {
@@ -197,13 +197,13 @@ impl Renderer for WgpuRenderer {
             Err(Error::Renderer("Surface not initialized".to_string()))
         }
     }
-    
+
     fn flush(&mut self) -> Result<(), Error> {
         // WGPU already submits and presents in the render method
         // No additional flushing needed
         Ok(())
     }
-    
+
     fn cleanup(&mut self) -> Result<(), Error> {
         // Release surface
         self.surface = None;
