@@ -8,7 +8,7 @@ use wgpu::{Adapter, Device, Instance, Queue, Surface, SurfaceConfiguration};
 #[cfg(feature = "wgpu")]
 use crate::component::Node;
 #[cfg(feature = "wgpu")]
-use crate::renderer::Renderer;
+use crate::renderer::{Renderer, RenderContext};
 #[cfg(feature = "wgpu")]
 use crate::Error;
 
@@ -148,7 +148,7 @@ impl Renderer for WgpuRenderer {
         Ok(())
     }
 
-    fn render(&mut self, _root: &Node) -> Result<(), Error> {
+    fn render(&mut self, _root: &Node, _context: &mut RenderContext) -> Result<(), Error> {
         // Get current surface texture
         if let Some(surface) = &self.surface {
             let frame = surface

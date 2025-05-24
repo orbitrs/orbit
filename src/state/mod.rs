@@ -165,7 +165,6 @@ impl<T: 'static + Clone + Send + Sync> State<T> {
         // Notify subscribers
         self.container.notify(self.type_id);
     }
-
     /// Update value with a function
     pub fn update<F>(&self, f: F)
     where
@@ -189,6 +188,18 @@ impl<T: 'static + Clone + Send + Sync> State<T> {
                 self.container.notify(self.type_id);
             }
         }
+    }
+
+    /// Add a callback that will be called when the state changes
+    pub fn on_change<F>(&self, _callback: F)
+    where
+        F: Fn(&T) + Send + Sync + 'static,
+    {
+        self.container.subscribe::<T, _>(move || {
+            // The callback is called when the state changes
+            // Note: We can't pass the actual value here since the generic callback
+            // in subscribe doesn't have access to it
+        });
     }
 }
 

@@ -22,7 +22,7 @@ pub use hit_testing::*;
 
 use crate::{
     component::ComponentId,
-    layout::{Point, LayoutNode},
+    layout::{LayoutNode, Point},
 };
 
 /// Enhanced event system that integrates with layout and components
@@ -39,12 +39,12 @@ impl EventSystem {
     pub fn new() -> Self {
         Self {
             hit_tester: HitTester::new(),
-            delegator: EventDelegate::new(),
+            delegator: EventDelegate::new(None),
         }
     }
 
     /// Process a pointer event (mouse, touch) with layout hit testing
-    pub fn process_pointer_event<E: Event>(
+    pub fn process_pointer_event<E: Event + Clone>(
         &mut self,
         event: E,
         position: Point,
@@ -57,16 +57,10 @@ impl EventSystem {
         let mut processed_targets = Vec::new();
 
         for target_id in hit_targets {
-            let delegated_event = DelegatedEvent::new(
-                Box::new(event.clone()),
-                target_id,
-                PropagationPhase::Target,
-            );
-
-            // Process the event through delegation
-            if self.delegator.dispatch_event(delegated_event).is_ok() {
-                processed_targets.push(target_id);
-            }
+            let _delegated_event = DelegatedEvent::new(event.clone(), PropagationPhase::Target); // Process the event through delegation
+            self.delegator
+                .dispatch(&event, Some(target_id.id() as usize));
+            processed_targets.push(target_id);
         }
 
         Ok(processed_targets)

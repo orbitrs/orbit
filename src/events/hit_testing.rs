@@ -8,7 +8,7 @@ use std::collections::VecDeque;
 
 use crate::{
     component::ComponentId,
-    layout::{Point, LayoutNode, Rect},
+    layout::{LayoutNode, Point, Rect},
 };
 
 use super::EventError;
@@ -207,10 +207,7 @@ impl std::fmt::Display for HitTestStats {
         write!(
             f,
             "Hit Test Stats: {} tests, {}μs total time, {} nodes tested, {} hits found",
-            self.hit_tests,
-            self.hit_test_time_us,
-            self.nodes_tested,
-            self.hits_found
+            self.hit_tests, self.hit_test_time_us, self.nodes_tested, self.hits_found
         )
     }
 }
@@ -220,7 +217,7 @@ mod tests {
     use super::*;
     use crate::{
         component::ComponentId,
-        layout::{LayoutStyle, LayoutNode, Size},
+        layout::{LayoutNode, LayoutStyle},
     };
 
     fn create_test_layout() -> LayoutNode {
@@ -288,7 +285,7 @@ mod tests {
         let hits = hit_tester.hit_test(point, &layout).unwrap();
 
         assert_eq!(hits.len(), 3); // Should hit nested, child1, and root
-        
+
         // Verify depth ordering (front to back)
         assert_eq!(hits[0], layout.children[0].children[0].id); // nested
         assert_eq!(hits[1], layout.children[0].id); // child1

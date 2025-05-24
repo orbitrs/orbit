@@ -139,6 +139,19 @@ pub struct EventDelegate {
     children: Vec<Arc<Mutex<EventDelegate>>>,
 }
 
+impl std::fmt::Debug for EventDelegate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EventDelegate")
+            .field("component_id", &self.component_id)
+            .field("capturing_handlers", &"<handlers>")
+            .field("bubbling_handlers", &"<handlers>")
+            .field("target_handlers", &"<handlers>")
+            .field("parent", &self.parent.as_ref().map(|_| "<delegate>"))
+            .field("children", &format!("<{} children>", self.children.len()))
+            .finish()
+    }
+}
+
 impl EventDelegate {
     /// Create a new event delegate
     pub fn new(component_id: Option<usize>) -> Self {

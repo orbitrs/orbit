@@ -1,4 +1,5 @@
 // Skia renderer implementation for the Orbit UI framework
+#![cfg(feature = "skia")]
 use std::{error::Error, fmt, sync::Arc};
 
 use skia_safe::{
@@ -8,6 +9,7 @@ use skia_safe::{
 };
 
 use crate::component::Node;
+use crate::renderer::RenderContext;
 
 /// A message sent to the renderer thread
 #[derive(Clone)]
@@ -257,7 +259,7 @@ impl crate::renderer::Renderer for SkiaRenderer {
         Ok(())
     }
 
-    fn render(&mut self, _root: &Node) -> Result<(), crate::Error> {
+    fn render(&mut self, _root: &Node, _context: &mut RenderContext) -> Result<(), crate::Error> {
         // Initialize if not already done
         if self.state.is_none() {
             // Use default dimensions for now

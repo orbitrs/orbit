@@ -22,7 +22,10 @@ pub use crate::component_single::Node;
 use std::{
     any::TypeId,
     collections::HashMap,
-    sync::{Arc, Mutex, atomic::{AtomicU64, Ordering}},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex,
+    },
 };
 
 use crate::{
@@ -243,6 +246,56 @@ impl<T: 'static + Clone + Send + Sync> Props for T {
 /// Marker trait to ensure props are sized
 pub trait SizedProps: Props + Sized {}
 
+/// Wraps a component instance with its metadata
+pub struct ComponentInstance {
+    /// Component instance
+    pub instance: Arc<Mutex<Box<dyn AnyComponent>>>,
+    /// Current props
+    pub props: Box<dyn Props>,
+    /// Component type ID for type checking
+    pub type_id: TypeId,
+}
+
+impl ComponentInstance {
+    /// Create a new component instance
+    pub fn new<C: Component + 'static>(instance: C, props: C::Props) -> Self {
+        Self {
+            instance: Arc::new(Mutex::new(Box::new(instance) as Box<dyn AnyComponent>)),
+            props: Box::new(props),
+            type_id: TypeId::of::<C>(),
+        }
+    }
+
+    /// Update the component instance with new props
+    pub fn update<P: Props>(&mut self, props: P) -> Result<(), ComponentError> {
+        let prop_type_id = TypeId::of::<P>();
+
+        // Check that the props type matches
+        if self.type_id != TypeId::of::<P>() {
+            return Err(ComponentError::PropsMismatch {
+                expected: self.type_id,
+                got: prop_type_id,
+            });
+        }
+
+        // Store the new props
+        self.props = Box::new(props);
+
+        // Update the component with the new props
+        let mut _instance = self.instance.lock().map_err(|_| {
+            ComponentError::LockError("Failed to lock component for update".to_string())
+        })?;
+
+        // This is a simplified implementation - in practice we'd need more sophisticated prop handling
+        Ok(())
+    }
+
+    /// Get the component's type ID
+    pub fn type_id(&self) -> TypeId {
+        self.type_id
+    }
+}
+
 /// Type-erased component trait for dynamic dispatch
 pub trait AnyComponent: Send + Sync + std::any::Any {
     /// Get unique component ID for debugging and tracking
@@ -293,9 +346,9 @@ pub trait Component: AnyComponent + Send + Sync + std::any::Any {
     }
 
     /// Called when component state changes and updates are needed
-    fn state_changed(&mut self, state_key: &str) -> Result<(), ComponentError> {
+    fn state_changed(&mut self, _state_key: &str) -> Result<(), ComponentError> {
         // Default implementation requests a re-render
-        self.request_update()
+        Component::request_update(self)
     }
 
     /// Request that this component be re-rendered
@@ -307,7 +360,7 @@ pub trait Component: AnyComponent + Send + Sync + std::any::Any {
 
     /// Check if component should update given new props
     /// Override for performance optimization
-    fn should_update(&self, new_props: &Self::Props) -> bool {
+    fn should_update(&self, _new_props: &Self::Props) -> bool {
         // Default: always update
         // Override this for memoization and performance
         true
@@ -442,6 +495,39 @@ impl ComponentBase {
     }
 }
 
+/// Basic Component implementation for ComponentBase (primarily for testing)
+impl Component for ComponentBase {
+    type Props = (); // ComponentBase doesn't need props
+
+    fn component_id(&self) -> ComponentId {
+        self.id
+    }
+
+    fn create(_props: Self::Props, context: Context) -> Self {
+        Self::new(context)
+    }
+
+    fn update(&mut self, _props: Self::Props) -> Result<(), ComponentError> {
+        // ComponentBase doesn't have props to update
+        Ok(())
+    }
+
+    fn render(&self) -> Result<Vec<Node>, ComponentError> {
+        // ComponentBase doesn't render anything by default
+        Ok(vec![])
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }    fn lifecycle_phase(&self) -> LifecyclePhase {
+        self.lifecycle_phase
+    }
+}
+
 /// Automatic implementation of AnyComponent for all Components
 impl<T: Component> AnyComponent for T {
     fn component_id(&self) -> ComponentId {
@@ -452,9 +538,9 @@ impl<T: Component> AnyComponent for T {
         Component::lifecycle_phase(self)
     }
 
-    fn set_lifecycle_phase(&mut self, phase: LifecyclePhase) {
-        // This will be overridden by concrete implementations
+    fn set_lifecycle_phase(&mut self, _phase: LifecyclePhase) {
         // Default implementation does nothing
+        // Concrete implementations can override this through AnyComponent if needed
     }
 
     fn request_update(&mut self) -> Result<(), ComponentError> {
@@ -613,8 +699,8 @@ impl Context {
     where
         T: Clone + Send + Sync + 'static,
     {
-        let state = self.state.create_state(initial_value);
-        
+        let state = self.state.create(initial_value);
+
         // Set up state change listener to trigger component updates
         let scheduler = Arc::clone(&self.update_scheduler);
         state.on_change(move |_| {
@@ -622,7 +708,7 @@ impl Context {
                 s.schedule_update(component_id);
             }
         });
-        
+
         state
     }
 

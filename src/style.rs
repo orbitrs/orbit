@@ -3,8 +3,8 @@
 #[cfg(test)]
 mod tests;
 
-use crate::layout::{Dimension, EdgeValues, LayoutStyle};
 use crate::component::ComponentId;
+use crate::layout::{Dimension, EdgeValues, LayoutStyle};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -214,13 +214,13 @@ pub struct Style {
     pub color: Option<Color>,
     pub opacity: Option<f32>,
     pub visibility: Option<Visibility>,
-    
+
     // Border properties
     pub border_width: Option<EdgeValues>,
     pub border_color: Option<EdgeColors>,
     pub border_style: Option<BorderStyle>,
     pub border_radius: Option<BorderRadius>,
-    
+
     // Font and text properties
     pub font_family: Option<String>,
     pub font_size: Option<f32>,
@@ -231,30 +231,30 @@ pub struct Style {
     pub text_align: Option<TextAlign>,
     pub text_decoration: Option<TextDecoration>,
     pub text_transform: Option<TextTransform>,
-    
+
     // Layout integration (connects to layout engine)
     pub layout_style: Option<LayoutStyle>,
-    
+
     // Transform properties
     pub transform: Option<Transform>,
     pub transform_origin: Option<Point2D>,
-    
+
     // Transition properties (for animation integration)
     pub transition_property: Option<Vec<String>>,
     pub transition_duration: Option<f32>,
     pub transition_timing_function: Option<TimingFunction>,
     pub transition_delay: Option<f32>,
-    
+
     // Shadow properties
     pub box_shadow: Option<Vec<BoxShadow>>,
     pub text_shadow: Option<Vec<TextShadow>>,
-    
+
     // Advanced properties
     pub filter: Option<Vec<Filter>>,
     pub backdrop_filter: Option<Vec<Filter>>,
     pub z_index: Option<i32>,
     pub cursor: Option<CursorType>,
-    
+
     // Performance and caching
     pub computed_hash: Option<u64>,
     pub is_dirty: bool,
@@ -269,6 +269,41 @@ pub enum Color {
     Hsl(f32, f32, f32, f32),
     CurrentColor,
     Transparent,
+}
+
+impl std::hash::Hash for Color {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Color::Rgba(r, g, b, a) => {
+                0u8.hash(state);
+                r.to_bits().hash(state);
+                g.to_bits().hash(state);
+                b.to_bits().hash(state);
+                a.to_bits().hash(state);
+            }
+            Color::Hex(s) => {
+                1u8.hash(state);
+                s.hash(state);
+            }
+            Color::Named(s) => {
+                2u8.hash(state);
+                s.hash(state);
+            }
+            Color::Hsl(h, s, l, a) => {
+                3u8.hash(state);
+                h.to_bits().hash(state);
+                s.to_bits().hash(state);
+                l.to_bits().hash(state);
+                a.to_bits().hash(state);
+            }
+            Color::CurrentColor => {
+                4u8.hash(state);
+            }
+            Color::Transparent => {
+                5u8.hash(state);
+            }
+        }
+    }
 }
 
 /// Visibility values
@@ -575,4 +610,541 @@ impl Style {
 pub enum StyleError {
     #[error("Error parsing CSS: {0}")]
     ParseError(String),
+}
+
+impl StyleEngine {
+    /// Create a new style engine
+    pub fn new() -> Self {
+        Self {
+            computed_cache: HashMap::new(),
+            inheritance_tree: HashMap::new(),
+            global_rules: Vec::new(),
+            component_rules: HashMap::new(),
+            stats: StyleStats::default(),
+            cache_hit_counter: AtomicU64::new(0),
+        }
+    }
+
+    /// Add global CSS rules that apply to all components
+    pub fn add_global_rules(&mut self, rules: Vec<StyleRule>) {
+        self.global_rules.extend(rules);
+    }
+
+    /// Add component-scoped CSS rules
+    pub fn add_component_rules(&mut self, component_id: ComponentId, rules: Vec<StyleRule>) {
+        self.component_rules
+            .entry(component_id)
+            .or_default()
+            .extend(rules);
+    }
+
+    /// Compute the final style for a component with context
+    pub fn compute_style(
+        &mut self,
+        component_id: ComponentId,
+        base_style: &Style,
+        context: &StyleContext,
+    ) -> Result<ComputedStyle, StyleError> {
+        let start_time = std::time::Instant::now();
+
+        // Generate cache key from component ID, style, and context
+        let cache_key = self.generate_cache_key(component_id, base_style, context);
+
+        // Check cache first
+        if let Some(computed) = self.computed_cache.get(&cache_key) {
+            self.cache_hit_counter.fetch_add(1, Ordering::Relaxed);
+            self.stats.cache_hits += 1;
+            return Ok(computed.clone());
+        }
+
+        // Compute new style
+        let mut computed_style = base_style.clone();
+
+        // Apply inheritance from parent
+        if let Some(inherited) = &context.inherited_style {
+            self.apply_inheritance(&mut computed_style, &inherited.style);
+        }
+
+        // Apply global CSS rules
+        self.apply_css_rules(&mut computed_style, &self.global_rules.clone(), context)?;
+
+        // Apply component-scoped rules
+        if let Some(component_rules) = self.component_rules.get(&component_id) {
+            self.apply_css_rules(&mut computed_style, component_rules, context)?;
+        }
+
+        // Convert to layout style
+        let layout_style = self.style_to_layout_style(&computed_style, context)?;
+
+        // Create computed style result
+        let computed = ComputedStyle {
+            style: computed_style.clone(),
+            layout_style,
+            hash: cache_key,
+            is_animatable: self.is_style_animatable(&computed_style),
+            computed_at: std::time::Instant::now(),
+        };
+
+        // Cache the result
+        self.computed_cache.insert(cache_key, computed.clone());
+
+        // Update performance statistics
+        let computation_time = start_time.elapsed().as_secs_f32() * 1000.0;
+        self.stats.computations += 1;
+        self.stats.computation_time_ms += computation_time;
+        self.stats.avg_computation_time_ms =
+            self.stats.computation_time_ms / self.stats.computations as f32;
+        self.stats.cache_size = self.computed_cache.len();
+
+        Ok(computed)
+    }
+
+    /// Generate cache key for style computation
+    fn generate_cache_key(
+        &self,
+        component_id: ComponentId,
+        style: &Style,
+        context: &StyleContext,
+    ) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+
+        let mut hasher = DefaultHasher::new();
+        component_id.hash(&mut hasher);
+
+        // Hash style properties that affect computation
+        style.color.hash(&mut hasher);
+        style.background_color.hash(&mut hasher);
+        style.font_size.map(|f| f.to_bits()).hash(&mut hasher);
+        style.opacity.map(|f| f.to_bits()).hash(&mut hasher);
+
+        // Hash context
+        context.viewport_width.to_bits().hash(&mut hasher);
+        context.viewport_height.to_bits().hash(&mut hasher);
+        context.device_pixel_ratio.to_bits().hash(&mut hasher);
+
+        hasher.finish()
+    }
+
+    /// Apply CSS inheritance rules
+    fn apply_inheritance(&mut self, style: &mut Style, parent_style: &Style) {
+        // Inherit font properties if not explicitly set
+        if style.font_family.is_none() {
+            style.font_family = parent_style.font_family.clone();
+        }
+        if style.font_size.is_none() {
+            style.font_size = parent_style.font_size;
+        }
+        if style.font_weight.is_none() {
+            style.font_weight = parent_style.font_weight.clone();
+        }
+        if style.color.is_none() {
+            style.color = parent_style.color.clone();
+        }
+        if style.line_height.is_none() {
+            style.line_height = parent_style.line_height;
+        }
+        if style.letter_spacing.is_none() {
+            style.letter_spacing = parent_style.letter_spacing;
+        }
+        if style.text_align.is_none() {
+            style.text_align = parent_style.text_align.clone();
+        }
+
+        self.stats.inheritance_operations += 1;
+    }
+
+    /// Apply CSS rules to a style
+    fn apply_css_rules(
+        &self,
+        style: &mut Style,
+        rules: &[StyleRule],
+        context: &StyleContext,
+    ) -> Result<(), StyleError> {
+        // Sort rules by specificity and source order
+        let mut sorted_rules = rules.to_vec();
+        sorted_rules.sort_by(|a, b| {
+            a.specificity
+                .cmp(&b.specificity)
+                .then(a.source_order.cmp(&b.source_order))
+        });
+
+        // Apply rules in order
+        for rule in sorted_rules {
+            for selector in &rule.selectors {
+                for property in &selector.properties {
+                    self.apply_css_property(style, property, context)?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Apply a single CSS property to a style
+    fn apply_css_property(
+        &self,
+        style: &mut Style,
+        property: &CssProperty,
+        _context: &StyleContext,
+    ) -> Result<(), StyleError> {
+        match property.name.as_str() {
+            "color" => {
+                style.color = Some(self.parse_color(&property.value)?);
+            }
+            "background-color" => {
+                style.background_color = Some(self.parse_color(&property.value)?);
+            }
+            "opacity" => {
+                style.opacity = property.value.parse().ok();
+            }
+            "font-size" => {
+                style.font_size = self.parse_font_size(&property.value);
+            }
+            "font-weight" => {
+                style.font_weight = Some(self.parse_font_weight(&property.value)?);
+            }
+            "font-family" => {
+                style.font_family = Some(property.value.clone());
+            }
+            "text-align" => {
+                style.text_align = Some(self.parse_text_align(&property.value)?);
+            }
+            "border-radius" => {
+                style.border_radius = Some(self.parse_border_radius(&property.value)?);
+            }
+            "z-index" => {
+                style.z_index = property.value.parse().ok();
+            }
+            _ => {
+                // Unknown property - could log warning in debug mode
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Convert Style to LayoutStyle for layout engine integration
+    fn style_to_layout_style(
+        &mut self,
+        style: &Style,
+        context: &StyleContext,
+    ) -> Result<LayoutStyle, StyleError> {
+        let mut layout_style = LayoutStyle::default();
+
+        // Copy layout-related properties from existing layout_style if present
+        if let Some(existing_layout) = &style.layout_style {
+            layout_style = existing_layout.clone();
+        }
+
+        // Apply style properties that affect layout
+        if let Some(opacity) = style.opacity {
+            // Opacity affects layout in some cases (e.g., visibility)
+            if opacity == 0.0 {
+                // Could set display: none equivalent
+            }
+        }
+
+        // Handle border width affecting layout
+        if let Some(border_width) = &style.border_width {
+            // Border width affects content area
+            layout_style.border = *border_width;
+        }
+
+        // Handle transforms that affect layout bounds
+        if let Some(_transform) = &style.transform {
+            // Transforms can affect layout bounds
+            // Implementation depends on transform type
+        }
+
+        // Apply responsive sizing based on viewport
+        self.apply_responsive_sizing(&mut layout_style, context);
+
+        self.stats.layout_conversions += 1;
+        Ok(layout_style)
+    }
+    /// Apply responsive sizing rules
+    fn apply_responsive_sizing(&self, layout_style: &mut LayoutStyle, context: &StyleContext) {
+        // Apply responsive breakpoints and scaling
+        let scale_factor = context.device_pixel_ratio;
+
+        // Scale dimensions if needed
+        if let Dimension::Points(width) = layout_style.width {
+            layout_style.width = Dimension::Points(width * scale_factor);
+        }
+        if let Dimension::Points(height) = layout_style.height {
+            layout_style.height = Dimension::Points(height * scale_factor);
+        }
+    }
+
+    /// Check if a style contains animatable properties
+    fn is_style_animatable(&self, style: &Style) -> bool {
+        style.opacity.is_some()
+            || style.background_color.is_some()
+            || style.color.is_some()
+            || style.transform.is_some()
+            || style.border_radius.is_some()
+            || style.font_size.is_some()
+            || style.transition_duration.is_some()
+    }
+
+    /// Parse color from CSS value
+    fn parse_color(&self, value: &str) -> Result<Color, StyleError> {
+        let value = value.trim();
+
+        if value.starts_with('#') {
+            Ok(Color::Hex(value.to_string()))
+        } else if value.starts_with("rgb(") {
+            // Parse rgb(r, g, b) format
+            let inner = value.trim_start_matches("rgb(").trim_end_matches(')');
+            let parts: Vec<&str> = inner.split(',').collect();
+            if parts.len() == 3 {
+                let r = parts[0]
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| StyleError::ParseError("Invalid red value".to_string()))?
+                    as f32
+                    / 255.0;
+                let g = parts[1]
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| StyleError::ParseError("Invalid green value".to_string()))?
+                    as f32
+                    / 255.0;
+                let b = parts[2]
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| StyleError::ParseError("Invalid blue value".to_string()))?
+                    as f32
+                    / 255.0;
+                Ok(Color::Rgba(r, g, b, 1.0))
+            } else {
+                Err(StyleError::ParseError("Invalid RGB format".to_string()))
+            }
+        } else if value.starts_with("rgba(") {
+            // Parse rgba(r, g, b, a) format
+            let inner = value.trim_start_matches("rgba(").trim_end_matches(')');
+            let parts: Vec<&str> = inner.split(',').collect();
+            if parts.len() == 4 {
+                let r = parts[0]
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| StyleError::ParseError("Invalid red value".to_string()))?
+                    as f32
+                    / 255.0;
+                let g = parts[1]
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| StyleError::ParseError("Invalid green value".to_string()))?
+                    as f32
+                    / 255.0;
+                let b = parts[2]
+                    .trim()
+                    .parse::<u8>()
+                    .map_err(|_| StyleError::ParseError("Invalid blue value".to_string()))?
+                    as f32
+                    / 255.0;
+                let a = parts[3]
+                    .trim()
+                    .parse::<f32>()
+                    .map_err(|_| StyleError::ParseError("Invalid alpha value".to_string()))?;
+                Ok(Color::Rgba(r, g, b, a))
+            } else {
+                Err(StyleError::ParseError("Invalid RGBA format".to_string()))
+            }
+        } else if value == "transparent" {
+            Ok(Color::Transparent)
+        } else if value == "currentColor" {
+            Ok(Color::CurrentColor)
+        } else {
+            Ok(Color::Named(value.to_string()))
+        }
+    }
+
+    /// Parse font size from CSS value
+    fn parse_font_size(&self, value: &str) -> Option<f32> {
+        let value = value.trim();
+        if value.ends_with("px") {
+            value.trim_end_matches("px").parse().ok()
+        } else if value.ends_with("pt") {
+            value
+                .trim_end_matches("pt")
+                .parse::<f32>()
+                .map(|pt| pt * 1.333)
+                .ok()
+        } else if value.ends_with("em") {
+            value
+                .trim_end_matches("em")
+                .parse::<f32>()
+                .map(|em| em * 16.0)
+                .ok()
+        } else {
+            value.parse().ok()
+        }
+    }
+
+    /// Parse font weight from CSS value
+    fn parse_font_weight(&self, value: &str) -> Result<FontWeight, StyleError> {
+        match value.trim() {
+            "thin" | "100" => Ok(FontWeight::Thin),
+            "extra-light" | "200" => Ok(FontWeight::ExtraLight),
+            "light" | "300" => Ok(FontWeight::Light),
+            "normal" | "400" => Ok(FontWeight::Normal),
+            "medium" | "500" => Ok(FontWeight::Medium),
+            "semi-bold" | "600" => Ok(FontWeight::SemiBold),
+            "bold" | "700" => Ok(FontWeight::Bold),
+            "extra-bold" | "800" => Ok(FontWeight::ExtraBold),
+            "black" | "900" => Ok(FontWeight::Black),
+            _ => {
+                if let Ok(numeric) = value.parse::<u16>() {
+                    Ok(FontWeight::Numeric(numeric))
+                } else {
+                    Err(StyleError::ParseError(format!(
+                        "Invalid font weight: {}",
+                        value
+                    )))
+                }
+            }
+        }
+    }
+
+    /// Parse text alignment from CSS value
+    fn parse_text_align(&self, value: &str) -> Result<TextAlign, StyleError> {
+        match value.trim() {
+            "left" => Ok(TextAlign::Left),
+            "right" => Ok(TextAlign::Right),
+            "center" => Ok(TextAlign::Center),
+            "justify" => Ok(TextAlign::Justify),
+            "start" => Ok(TextAlign::Start),
+            "end" => Ok(TextAlign::End),
+            _ => Err(StyleError::ParseError(format!(
+                "Invalid text align: {}",
+                value
+            ))),
+        }
+    }
+
+    /// Parse border radius from CSS value
+    fn parse_border_radius(&self, value: &str) -> Result<BorderRadius, StyleError> {
+        let parts: Vec<&str> = value.split_whitespace().collect();
+        match parts.len() {
+            1 => {
+                let radius = self.parse_length(parts[0])?;
+                Ok(BorderRadius {
+                    top_left: radius,
+                    top_right: radius,
+                    bottom_right: radius,
+                    bottom_left: radius,
+                })
+            }
+            2 => {
+                let radius1 = self.parse_length(parts[0])?;
+                let radius2 = self.parse_length(parts[1])?;
+                Ok(BorderRadius {
+                    top_left: radius1,
+                    top_right: radius2,
+                    bottom_right: radius1,
+                    bottom_left: radius2,
+                })
+            }
+            4 => Ok(BorderRadius {
+                top_left: self.parse_length(parts[0])?,
+                top_right: self.parse_length(parts[1])?,
+                bottom_right: self.parse_length(parts[2])?,
+                bottom_left: self.parse_length(parts[3])?,
+            }),
+            _ => Err(StyleError::ParseError(
+                "Invalid border radius format".to_string(),
+            )),
+        }
+    }
+
+    /// Parse length value (px, pt, em, etc.)
+    fn parse_length(&self, value: &str) -> Result<f32, StyleError> {
+        let value = value.trim();
+        if value.ends_with("px") {
+            value
+                .trim_end_matches("px")
+                .parse()
+                .map_err(|_| StyleError::ParseError("Invalid pixel value".to_string()))
+        } else if value.ends_with("pt") {
+            value
+                .trim_end_matches("pt")
+                .parse::<f32>()
+                .map(|pt| pt * 1.333)
+                .map_err(|_| StyleError::ParseError("Invalid point value".to_string()))
+        } else if value.ends_with("em") {
+            value
+                .trim_end_matches("em")
+                .parse::<f32>()
+                .map(|em| em * 16.0)
+                .map_err(|_| StyleError::ParseError("Invalid em value".to_string()))
+        } else {
+            value
+                .parse()
+                .map_err(|_| StyleError::ParseError("Invalid length value".to_string()))
+        }
+    }
+
+    /// Get performance statistics
+    pub fn get_stats(&self) -> StyleStats {
+        let mut stats = self.stats.clone();
+        stats.cache_hits = self.cache_hit_counter.load(Ordering::Relaxed);
+        stats.cache_size = self.computed_cache.len();
+        stats
+    }
+
+    /// Clear style cache (useful for memory management)
+    pub fn clear_cache(&mut self) {
+        self.computed_cache.clear();
+        self.stats.cache_size = 0;
+    }
+
+    /// Set parent-child inheritance relationship
+    pub fn set_inheritance(&mut self, child_id: ComponentId, parent_id: ComponentId) {
+        self.inheritance_tree.insert(child_id, parent_id);
+    }
+}
+
+impl Default for StyleEngine {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Default for StyleContext {
+    fn default() -> Self {
+        Self {
+            viewport_width: 1920.0,
+            viewport_height: 1080.0,
+            device_pixel_ratio: 1.0,
+            inherited_style: None,
+            component_id: None,
+            theme_variables: HashMap::new(),
+            performance_monitoring: false,
+        }
+    }
+}
+
+impl ComputedStyle {
+    /// Check if this computed style is expired (for cache invalidation)
+    pub fn is_expired(&self, max_age_ms: u128) -> bool {
+        self.computed_at.elapsed().as_millis() > max_age_ms
+    }
+
+    /// Get a specific property value from the computed style
+    pub fn get_property(&self, name: &str) -> Option<String> {
+        match name {
+            "color" => self.style.color.as_ref().map(|c| format!("{:?}", c)),
+            "background-color" => self
+                .style
+                .background_color
+                .as_ref()
+                .map(|c| format!("{:?}", c)),
+            "opacity" => self.style.opacity.map(|o| o.to_string()),
+            "font-size" => self.style.font_size.map(|f| format!("{}px", f)),
+            "font-weight" => self.style.font_weight.as_ref().map(|w| format!("{:?}", w)),
+            _ => None,
+        }
+    }
 }
