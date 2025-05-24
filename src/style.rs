@@ -261,7 +261,7 @@ pub struct Style {
 }
 
 /// Color representation supporting multiple formats
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Hash)]
 pub enum Color {
     Rgba(f32, f32, f32, f32),
     Hex(String),
