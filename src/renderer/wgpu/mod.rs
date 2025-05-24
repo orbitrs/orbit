@@ -8,7 +8,7 @@ use wgpu::{Adapter, Device, Instance, Queue, Surface, SurfaceConfiguration};
 #[cfg(feature = "wgpu")]
 use crate::component::Node;
 #[cfg(feature = "wgpu")]
-use crate::renderer::{Renderer, RenderContext};
+use crate::renderer::{RenderContext, Renderer};
 #[cfg(feature = "wgpu")]
 use crate::Error;
 
