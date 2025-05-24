@@ -969,7 +969,8 @@ mod tests {
             node_count: 10,
             cache_hits: 3,
             cache_misses: 7,
-        };        let display_string = format!("{stats}");
+        };
+        let display_string = format!("{stats}");
         assert!(display_string.contains("5 calculations"));
         assert!(display_string.contains("1000μs"));
         assert!(display_string.contains("10 nodes"));

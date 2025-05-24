@@ -43,7 +43,8 @@ impl EventEmitter {
             if let Some(typed_event) = event.as_any().downcast_ref::<E>() {
                 handler(typed_event);
             }
-        });        let mut handlers = self
+        });
+        let mut handlers = self
             .handlers
             .lock()
             .map_err(|e| format!("Failed to lock event handlers: {e}"))?;
@@ -58,7 +59,8 @@ impl EventEmitter {
 
     /// Emit an event
     pub fn emit<E: Event>(&self, event: &E) -> Result<(), String> {
-        let type_id = TypeId::of::<E>();        let handlers = self
+        let type_id = TypeId::of::<E>();
+        let handlers = self
             .handlers
             .lock()
             .map_err(|e| format!("Failed to lock event handlers: {e}"))?;
@@ -72,7 +74,8 @@ impl EventEmitter {
     }
 
     /// Remove all handlers
-    pub fn clear(&mut self) -> Result<(), String> {        let mut handlers = self
+    pub fn clear(&mut self) -> Result<(), String> {
+        let mut handlers = self
             .handlers
             .lock()
             .map_err(|e| format!("Failed to lock event handlers: {e}"))?;

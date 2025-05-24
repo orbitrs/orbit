@@ -47,7 +47,8 @@ impl<E: Event> Dispatcher<E> {
     /// Add a new event handler
     pub fn add_handler<H>(&mut self, handler: H) -> Result<(), String>
     where
-        H: Handler<E> + 'static,    {
+        H: Handler<E> + 'static,
+    {
         let mut handlers = self
             .handlers
             .lock()
@@ -66,7 +67,8 @@ impl<E: Event> Dispatcher<E> {
     }
 
     /// Dispatch an event to all handlers
-    pub fn dispatch(&self, event: &E) -> Result<(), String> {        let handlers = self
+    pub fn dispatch(&self, event: &E) -> Result<(), String> {
+        let handlers = self
             .handlers
             .lock()
             .map_err(|e| format!("Failed to lock handlers: {e}"))?;
@@ -87,7 +89,8 @@ impl<E: Event> Dispatcher<E> {
     }
 
     /// Remove all handlers
-    pub fn clear(&mut self) -> Result<(), String> {        let mut handlers = self
+    pub fn clear(&mut self) -> Result<(), String> {
+        let mut handlers = self
             .handlers
             .lock()
             .map_err(|e| format!("Failed to lock handlers: {e}"))?;

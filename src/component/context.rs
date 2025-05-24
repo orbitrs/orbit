@@ -25,7 +25,8 @@ impl<T: Any + Clone + Send + Sync + Debug + 'static> ContextValue for T {
 
     fn box_clone(&self) -> Box<dyn ContextValue> {
         Box::new(self.clone())
-    }    fn debug_string(&self) -> String {
+    }
+    fn debug_string(&self) -> String {
         format!("{self:?}")
     }
 }
