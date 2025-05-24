@@ -217,7 +217,7 @@ mod tests {
     use super::*;
     use crate::{
         component::ComponentId,
-        layout::{LayoutNode, LayoutStyle, Size},
+        layout::{LayoutNode, LayoutStyle},
     };
 
     fn create_test_layout() -> LayoutNode {

@@ -495,6 +495,45 @@ impl ComponentBase {
     }
 }
 
+/// Basic Component implementation for ComponentBase (primarily for testing)
+impl Component for ComponentBase {
+    type Props = (); // ComponentBase doesn't need props
+
+    fn component_id(&self) -> ComponentId {
+        self.id
+    }
+
+    fn create(_props: Self::Props, context: Context) -> Self {
+        Self::new(context)
+    }
+
+    fn update(&mut self, _props: Self::Props) -> Result<(), ComponentError> {
+        // ComponentBase doesn't have props to update
+        Ok(())
+    }
+
+    fn render(&self) -> Result<Vec<Node>, ComponentError> {
+        // ComponentBase doesn't render anything by default
+        Ok(vec![])
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
+        self
+    }
+
+    fn lifecycle_phase(&self) -> LifecyclePhase {
+        self.lifecycle_phase
+    }
+
+    fn set_lifecycle_phase(&mut self, phase: LifecyclePhase) {
+        self.set_lifecycle_phase(phase);
+    }
+}
+
 /// Automatic implementation of AnyComponent for all Components
 impl<T: Component> AnyComponent for T {
     fn component_id(&self) -> ComponentId {
