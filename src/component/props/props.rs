@@ -38,10 +38,10 @@ impl Display for PropValidationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             PropValidationError::MissingRequired(name) => {
-                write!(f, "Missing required property: {}", name)
+                write!(f, "Missing required property: {name}")
             }
             PropValidationError::InvalidValue { name, reason } => {
-                write!(f, "Invalid value for property {}: {}", name, reason)
+                write!(f, "Invalid value for property {name}: {reason}")
             }
             PropValidationError::TypeMismatch {
                 name,
@@ -49,8 +49,7 @@ impl Display for PropValidationError {
                 actual,
             } => write!(
                 f,
-                "Type mismatch for property {}: expected {}, got {}",
-                name, expected, actual
+                "Type mismatch for property {name}: expected {expected}, got {actual}"
             ),
             PropValidationError::Multiple(errors) => {
                 writeln!(f, "Multiple validation errors:")?;

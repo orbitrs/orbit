@@ -138,7 +138,7 @@ impl<'a> TemplateParser<'a> {
                     prev_was_operator = false;
                 }
                 Token::String(str) => {
-                    expr.push_str(&format!("\"{}\"", str));
+                    expr.push_str(&format!("\"{str}\""));
                     prev_was_identifier = true;
                     prev_was_operator = false;
                 }
