@@ -95,8 +95,7 @@ pub mod desktop {
                 Err(e) => {
                     // Fall back to Skia renderer if Auto selection fails
                     eprintln!(
-                        "Failed to create Auto renderer: {}, falling back to Skia",
-                        e
+                        "Failed to create Auto renderer: {e}, falling back to Skia"
                     );
                     crate::renderer::create_renderer(RendererType::Skia)
                         .expect("Failed to create fallback Skia renderer")
@@ -120,8 +119,7 @@ pub mod desktop {
                 Err(e) => {
                     // Fall back to Skia renderer if requested renderer fails
                     eprintln!(
-                        "Failed to create {:?} renderer: {}, falling back to Skia",
-                        renderer_type, e
+                        "Failed to create {renderer_type:?} renderer: {e}, falling back to Skia"
                     );
                     crate::renderer::create_renderer(RendererType::Skia)
                         .expect("Failed to create fallback Skia renderer")
@@ -141,7 +139,7 @@ pub mod desktop {
         fn init_window(&mut self) -> Result<(), crate::Error> {
             // Create an event loop
             let event_loop = EventLoop::new().map_err(|e| {
-                crate::Error::Platform(format!("Failed to create event loop: {}", e))
+                crate::Error::Platform(format!("Failed to create event loop: {e}"))
             })?;
 
             // Window configuration
@@ -177,7 +175,7 @@ pub mod desktop {
                         })
                         .unwrap()
                 })
-                .map_err(|e| crate::Error::Platform(format!("Failed to build display: {:?}", e)))?;
+                .map_err(|e| crate::Error::Platform(format!("Failed to build display: {e:?}")))?;
 
             // Set up the context attributes with defaults
             let context_attribs = glutin::context::ContextAttributesBuilder::new().build(None);
