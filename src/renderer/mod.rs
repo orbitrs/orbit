@@ -7,7 +7,7 @@ pub mod wgpu;
 // Re-export renderer items
 pub use skia::{RendererError, RendererMessage, RendererResult, SkiaRenderer};
 
-use crate::component::{Node, ComponentId};
+use crate::component::{ComponentId, Node};
 use std::collections::HashMap;
 
 /// Types of renderers available
@@ -59,7 +59,10 @@ impl RenderContext {
 
     /// Check if a component is dirty
     pub fn is_dirty(&self, component_id: ComponentId) -> bool {
-        self.dirty_components.get(&component_id).copied().unwrap_or(false)
+        self.dirty_components
+            .get(&component_id)
+            .copied()
+            .unwrap_or(false)
     }
 
     /// Clear dirty flag for a component
@@ -106,7 +109,12 @@ pub trait Renderer {
     fn render(&mut self, root: &Node, context: &mut RenderContext) -> Result<(), crate::Error>;
 
     /// Render only dirty components for performance
-    fn render_selective(&mut self, root: &Node, context: &mut RenderContext, dirty_components: &[ComponentId]) -> Result<(), crate::Error> {
+    fn render_selective(
+        &mut self,
+        root: &Node,
+        context: &mut RenderContext,
+        _dirty_components: &[ComponentId],
+    ) -> Result<(), crate::Error> {
         // Default implementation falls back to full render
         self.render(root, context)
     }
@@ -281,10 +289,17 @@ impl Renderer for CompositeRenderer {
         Ok(())
     }
 
-    fn render_selective(&mut self, root: &Node, context: &mut RenderContext, dirty_components: &[ComponentId]) -> Result<(), crate::Error> {
+    fn render_selective(
+        &mut self,
+        root: &Node,
+        context: &mut RenderContext,
+        dirty_components: &[ComponentId],
+    ) -> Result<(), crate::Error> {
         // Try selective rendering on both renderers
-        self.renderer_3d.render_selective(root, context, dirty_components)?;
-        self.renderer_2d.render_selective(root, context, dirty_components)?;
+        self.renderer_3d
+            .render_selective(root, context, dirty_components)?;
+        self.renderer_2d
+            .render_selective(root, context, dirty_components)?;
         Ok(())
     }
 

@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::component::{ComponentId, Node};
+use crate::component::ComponentId;
 
 /// Represents a 2D point with x and y coordinates
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -96,8 +96,10 @@ impl Rect {
     }
 
     pub fn contains_point(&self, point: Point) -> bool {
-        point.x >= self.x() && point.x <= self.max_x() &&
-        point.y >= self.y() && point.y <= self.max_y()
+        point.x >= self.x()
+            && point.x <= self.max_x()
+            && point.y >= self.y()
+            && point.y <= self.max_y()
     }
 }
 
@@ -216,7 +218,12 @@ pub struct EdgeValues {
 
 impl EdgeValues {
     pub fn new(top: f32, right: f32, bottom: f32, left: f32) -> Self {
-        Self { top, right, bottom, left }
+        Self {
+            top,
+            right,
+            bottom,
+            left,
+        }
     }
 
     pub fn uniform(value: f32) -> Self {
@@ -460,7 +467,11 @@ impl LayoutEngine {
     }
 
     /// Calculate layout for a node tree
-    pub fn calculate_layout(&mut self, root: &mut LayoutNode, container_size: Size) -> Result<(), LayoutError> {
+    pub fn calculate_layout(
+        &mut self,
+        root: &mut LayoutNode,
+        container_size: Size,
+    ) -> Result<(), LayoutError> {
         let start_time = std::time::Instant::now();
 
         // Clear dirty flags and prepare for layout
@@ -495,11 +506,19 @@ impl LayoutEngine {
 
     /// Count total nodes in the tree
     fn count_nodes(&self, node: &LayoutNode) -> u32 {
-        1 + node.children.iter().map(|child| self.count_nodes(child)).sum::<u32>()
+        1 + node
+            .children
+            .iter()
+            .map(|child| self.count_nodes(child))
+            .sum::<u32>()
     }
 
     /// Layout a single node and its children
-    fn layout_node(&mut self, node: &mut LayoutNode, container_size: Size) -> Result<(), LayoutError> {
+    fn layout_node(
+        &mut self,
+        node: &mut LayoutNode,
+        container_size: Size,
+    ) -> Result<(), LayoutError> {
         // Check cache first
         if !node.layout.is_dirty {
             if let Some(cached_layout) = self.layout_cache.get(&node.id) {
@@ -528,7 +547,11 @@ impl LayoutEngine {
     }
 
     /// Calculate the size of a node
-    fn calculate_node_size(&self, node: &mut LayoutNode, container_size: Size) -> Result<(), LayoutError> {
+    fn calculate_node_size(
+        &self,
+        node: &mut LayoutNode,
+        container_size: Size,
+    ) -> Result<(), LayoutError> {
         let style = &node.style;
 
         // Calculate width
@@ -555,7 +578,7 @@ impl LayoutEngine {
         let final_width = width
             .max(style.min_width.resolve(container_size.width))
             .min(style.max_width.resolve(container_size.width));
-        
+
         let final_height = height
             .max(style.min_height.resolve(container_size.height))
             .min(style.max_height.resolve(container_size.height));
@@ -604,14 +627,17 @@ impl LayoutEngine {
         let flex_direction = parent.style.flex_direction;
 
         // Separate absolutely positioned children
-        let (absolute_children, relative_children): (Vec<_>, Vec<_>) = 
-            (0..parent.children.len()).partition(|&i| {
-                parent.children[i].style.position_type == PositionType::Absolute
-            });
+        let (absolute_children, relative_children): (Vec<_>, Vec<_>) = (0..parent.children.len())
+            .partition(|&i| parent.children[i].style.position_type == PositionType::Absolute);
 
         // Layout relatively positioned children with flexbox
         if !relative_children.is_empty() {
-            self.layout_flex_line(&mut parent.children, &relative_children, parent_content_size, flex_direction)?;
+            self.layout_flex_line(
+                &mut parent.children,
+                &relative_children,
+                parent_content_size,
+                flex_direction,
+            )?;
         }
 
         // Layout absolutely positioned children
@@ -631,8 +657,15 @@ impl LayoutEngine {
         container_size: Size,
         flex_direction: FlexDirection,
     ) -> Result<(), LayoutError> {
-        let is_row = matches!(flex_direction, FlexDirection::Row | FlexDirection::RowReverse);
-        let main_axis_size = if is_row { container_size.width } else { container_size.height };
+        let is_row = matches!(
+            flex_direction,
+            FlexDirection::Row | FlexDirection::RowReverse
+        );
+        let main_axis_size = if is_row {
+            container_size.width
+        } else {
+            container_size.height
+        };
 
         // Calculate total flex grow and shrink factors
         let mut total_flex_grow = 0.0;
@@ -643,7 +676,7 @@ impl LayoutEngine {
             let child = &children[child_index];
             total_flex_grow += child.style.flex_grow;
             total_flex_shrink += child.style.flex_shrink;
-            
+
             // Calculate basis size
             let basis_size = match child.style.flex_basis {
                 Dimension::Auto => {
@@ -664,10 +697,10 @@ impl LayoutEngine {
 
         // Position children along the main axis
         let mut current_offset = 0.0;
-        
+
         for &child_index in child_indices {
             let child = &mut children[child_index];
-            
+
             // Calculate child's main axis size
             let basis_size = match child.style.flex_basis {
                 Dimension::Auto => {
@@ -692,7 +725,8 @@ impl LayoutEngine {
 
             // Set child size and position
             if is_row {
-                child.layout.rect = Rect::new(current_offset, 0.0, main_size, container_size.height);
+                child.layout.rect =
+                    Rect::new(current_offset, 0.0, main_size, container_size.height);
             } else {
                 child.layout.rect = Rect::new(0.0, current_offset, container_size.width, main_size);
             }
@@ -839,7 +873,7 @@ mod tests {
     fn test_layout_node_children() {
         let parent_id = ComponentId::new();
         let child_id = ComponentId::new();
-        
+
         let mut parent = LayoutNode::new(parent_id, LayoutStyle::default());
         let child = LayoutNode::new(child_id, LayoutStyle::default());
 
@@ -882,7 +916,7 @@ mod tests {
     #[test]
     fn test_flexbox_row_layout() {
         let mut engine = LayoutEngine::new();
-        
+
         // Create parent with row flex direction
         let parent_id = ComponentId::new();
         let mut parent_style = LayoutStyle::default();
@@ -911,7 +945,7 @@ mod tests {
 
         // Children should be laid out in a row
         assert_eq!(parent.children.len(), 2);
-        
+
         // Check that layout calculation was performed
         assert_eq!(engine.stats.layout_calculations, 1);
     }
@@ -933,7 +967,7 @@ mod tests {
         root.layout.is_dirty = false;
         let result = engine.calculate_layout(&mut root, container_size);
         assert!(result.is_ok());
-        
+
         // Should have used cache for the root node
         assert!(engine.stats.cache_hits > 0 || engine.stats.cache_misses > 1);
     }
@@ -958,16 +992,16 @@ mod tests {
     #[test]
     fn test_main_cross_axis_calculations() {
         let id = ComponentId::new();
-        
+
         // Test row direction
         let mut style = LayoutStyle::default();
         style.flex_direction = FlexDirection::Row;
         let mut node = LayoutNode::new(id, style);
         node.layout.rect = Rect::new(0.0, 0.0, 100.0, 50.0);
-        
+
         assert_eq!(node.main_axis_size(), 100.0); // width for row
         assert_eq!(node.cross_axis_size(), 50.0); // height for row
-        
+
         // Test column direction
         node.style.flex_direction = FlexDirection::Column;
         assert_eq!(node.main_axis_size(), 50.0); // height for column

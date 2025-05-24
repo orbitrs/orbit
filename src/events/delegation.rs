@@ -118,7 +118,7 @@ impl<E: Event> DelegatedEvent<E> {
 type DelegatedEventCallback<E> = Box<dyn Fn(&mut DelegatedEvent<E>) + Send + Sync>;
 
 /// Event delegate manages capturing, targeting, and bubbling of events
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct EventDelegate {
     /// Map of event type to callbacks registered for capturing phase
     capturing_handlers: HandlerMap,
@@ -137,6 +137,19 @@ pub struct EventDelegate {
 
     /// Child delegates for capturing events down
     children: Vec<Arc<Mutex<EventDelegate>>>,
+}
+
+impl std::fmt::Debug for EventDelegate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EventDelegate")
+            .field("component_id", &self.component_id)
+            .field("capturing_handlers", &"<handlers>")
+            .field("bubbling_handlers", &"<handlers>")
+            .field("target_handlers", &"<handlers>")
+            .field("parent", &self.parent.as_ref().map(|_| "<delegate>"))
+            .field("children", &format!("<{} children>", self.children.len()))
+            .finish()
+    }
 }
 
 impl EventDelegate {

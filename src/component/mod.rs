@@ -22,7 +22,10 @@ pub use crate::component_single::Node;
 use std::{
     any::TypeId,
     collections::HashMap,
-    sync::{Arc, Mutex, atomic::{AtomicU64, Ordering}},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc, Mutex,
+    },
 };
 
 use crate::{
@@ -279,10 +282,10 @@ impl ComponentInstance {
         self.props = Box::new(props);
 
         // Update the component with the new props
-        let mut instance = self.instance.lock().map_err(|_| {
+        let mut _instance = self.instance.lock().map_err(|_| {
             ComponentError::LockError("Failed to lock component for update".to_string())
         })?;
-        
+
         // This is a simplified implementation - in practice we'd need more sophisticated prop handling
         Ok(())
     }
@@ -357,7 +360,7 @@ pub trait Component: AnyComponent + Send + Sync + std::any::Any {
 
     /// Check if component should update given new props
     /// Override for performance optimization
-    fn should_update(&self, new_props: &Self::Props) -> bool {
+    fn should_update(&self, _new_props: &Self::Props) -> bool {
         // Default: always update
         // Override this for memoization and performance
         true
@@ -502,7 +505,7 @@ impl<T: Component> AnyComponent for T {
         Component::lifecycle_phase(self)
     }
 
-    fn set_lifecycle_phase(&mut self, phase: LifecyclePhase) {
+    fn set_lifecycle_phase(&mut self, _phase: LifecyclePhase) {
         // This will be overridden by concrete implementations
         // Default implementation does nothing
     }
@@ -664,7 +667,7 @@ impl Context {
         T: Clone + Send + Sync + 'static,
     {
         let state = self.state.create(initial_value);
-        
+
         // Set up state change listener to trigger component updates
         let scheduler = Arc::clone(&self.update_scheduler);
         state.on_change(move |_| {
@@ -672,7 +675,7 @@ impl Context {
                 s.schedule_update(component_id);
             }
         });
-        
+
         state
     }
 

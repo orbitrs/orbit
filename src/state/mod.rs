@@ -164,7 +164,8 @@ impl<T: 'static + Clone + Send + Sync> State<T> {
 
         // Notify subscribers
         self.container.notify(self.type_id);
-    }    /// Update value with a function
+    }
+    /// Update value with a function
     pub fn update<F>(&self, f: F)
     where
         F: FnOnce(&T) -> T,
@@ -190,7 +191,7 @@ impl<T: 'static + Clone + Send + Sync> State<T> {
     }
 
     /// Add a callback that will be called when the state changes
-    pub fn on_change<F>(&self, callback: F)
+    pub fn on_change<F>(&self, _callback: F)
     where
         F: Fn(&T) + Send + Sync + 'static,
     {

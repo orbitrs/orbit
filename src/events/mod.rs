@@ -22,7 +22,7 @@ pub use hit_testing::*;
 
 use crate::{
     component::ComponentId,
-    layout::{Point, LayoutNode},
+    layout::{LayoutNode, Point},
 };
 
 /// Enhanced event system that integrates with layout and components
@@ -57,11 +57,9 @@ impl EventSystem {
         let mut processed_targets = Vec::new();
 
         for target_id in hit_targets {
-            let delegated_event = DelegatedEvent::new(
-                event.clone(),
-                PropagationPhase::Target,
-            );            // Process the event through delegation
-            self.delegator.dispatch(&event, Some(target_id));
+            let _delegated_event = DelegatedEvent::new(event.clone(), PropagationPhase::Target); // Process the event through delegation
+            self.delegator
+                .dispatch(&event, Some(target_id.id() as usize));
             processed_targets.push(target_id);
         }
 

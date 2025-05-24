@@ -27,9 +27,9 @@ pub mod prelude {
         Event,
     };
     pub use crate::layout::{
-        AlignContent, AlignItems, Dimension, EdgeValues, FlexDirection, FlexWrap,
-        JustifyContent, LayoutEngine, LayoutNode, LayoutResult, LayoutStats, LayoutStyle,
-        Point, PositionType, Rect, Size,
+        AlignContent, AlignItems, Dimension, EdgeValues, FlexDirection, FlexWrap, JustifyContent,
+        LayoutEngine, LayoutNode, LayoutResult, LayoutStats, LayoutStyle, Point, PositionType,
+        Rect, Size,
     };
     pub use crate::renderer::Renderer;
     pub use crate::state::{
