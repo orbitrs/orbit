@@ -5,8 +5,7 @@
 
 use std::{
     cell::{RefCell, Ref, RefMut},
-    collections::HashMap,
-    rc::{Rc, Weak},
+    rc::Rc,
 };
 
 /// Errors that can occur in the reactive system
@@ -32,133 +31,20 @@ impl std::fmt::Display for SignalError {
 
 impl std::error::Error for SignalError {}
 
-/// Unique identifier for reactive nodes
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub struct NodeId(usize);
-
 /// Reactive scope that manages signals, effects, and computed values
+/// 
+/// This is a simplified implementation focused on basic functionality.
+/// Advanced dependency tracking will be implemented in future versions.
 pub struct ReactiveScope {
-    inner: Rc<RefCell<ScopeInner>>,
-}
-
-struct ScopeInner {
-    next_id: usize,
-    nodes: HashMap<NodeId, Box<dyn ReactiveNode>>,
-    dependencies: HashMap<NodeId, Vec<NodeId>>,
-    dependents: HashMap<NodeId, Vec<NodeId>>,
-    update_queue: Vec<NodeId>,
-    in_update: bool,
-}
-
-trait ReactiveNode {
-    fn update(&mut self) -> Result<(), SignalError>;
-    fn invalidate(&mut self);
-    fn is_dirty(&self) -> bool;
+    // Reserved for future dependency tracking functionality
 }
 
 impl ReactiveScope {
     /// Create a new reactive scope
     pub fn new() -> Self {
         Self {
-            inner: Rc::new(RefCell::new(ScopeInner {
-                next_id: 0,
-                nodes: HashMap::new(),
-                dependencies: HashMap::new(),
-                dependents: HashMap::new(),
-                update_queue: Vec::new(),
-                in_update: false,
-            })),
+            // Future: Add dependency tracking infrastructure here
         }
-    }
-
-    /// Generate a new unique node ID
-    fn next_id(&self) -> NodeId {
-        let mut inner = self.inner.borrow_mut();
-        let id = NodeId(inner.next_id);
-        inner.next_id += 1;
-        id
-    }
-
-    /// Register a reactive node
-    fn register_node(&self, node: Box<dyn ReactiveNode>) -> NodeId {
-        let id = self.next_id();
-        let mut inner = self.inner.borrow_mut();
-        inner.nodes.insert(id, node);
-        inner.dependencies.insert(id, Vec::new());
-        inner.dependents.insert(id, Vec::new());
-        id
-    }
-
-    /// Add a dependency relationship
-    fn add_dependency(&self, dependent: NodeId, dependency: NodeId) {
-        let mut inner = self.inner.borrow_mut();
-        
-        // Add to dependencies list
-        if let Some(deps) = inner.dependencies.get_mut(&dependent) {
-            if !deps.contains(&dependency) {
-                deps.push(dependency);
-            }
-        }
-        
-        // Add to dependents list
-        if let Some(dependents) = inner.dependents.get_mut(&dependency) {
-            if !dependents.contains(&dependent) {
-                dependents.push(dependent);
-            }
-        }
-    }
-
-    /// Mark a node as dirty and schedule updates
-    fn invalidate_node(&self, id: NodeId) -> Result<(), SignalError> {
-        let should_flush = {
-            let mut inner = self.inner.borrow_mut();
-            
-            // Mark the node as dirty
-            if let Some(node) = inner.nodes.get_mut(&id) {
-                node.invalidate();
-            }
-            
-            // Queue dependents for update
-            if let Some(dependents) = inner.dependents.get(&id).cloned() {
-                for dependent_id in dependents {
-                    if !inner.update_queue.contains(&dependent_id) {
-                        inner.update_queue.push(dependent_id);
-                    }
-                }
-            }
-            
-            // Check if we should flush updates
-            !inner.in_update
-        };
-        
-        // Flush updates if not already in an update cycle
-        if should_flush {
-            self.flush_updates()?;
-        }
-        
-        Ok(())
-    }
-
-    /// Flush all pending updates
-    fn flush_updates(&self) -> Result<(), SignalError> {
-        let mut inner = self.inner.borrow_mut();
-        
-        if inner.in_update {
-            return Ok(()); // Prevent recursive updates
-        }
-        
-        inner.in_update = true;
-        
-        while let Some(id) = inner.update_queue.pop() {
-            if let Some(node) = inner.nodes.get_mut(&id) {
-                if node.is_dirty() {
-                    node.update()?;
-                }
-            }
-        }
-        
-        inner.in_update = false;
-        Ok(())
     }
 }
 
@@ -170,9 +56,7 @@ impl Default for ReactiveScope {
 
 /// A reactive signal that holds a value
 pub struct Signal<T> {
-    id: NodeId,
-    scope: Weak<RefCell<ScopeInner>>,
-    value: Rc<RefCell<T>>,
+    pub value: Rc<RefCell<T>>,
     dirty: RefCell<bool>,
 }
 
@@ -198,11 +82,7 @@ impl<T> Signal<T> {
         // Mark as dirty and trigger updates
         *self.dirty.borrow_mut() = true;
         
-        // TODO: Improve dependency tracking integration
-        // if let Some(scope) = self.scope.upgrade() {
-        //     // Trigger invalidation through scope
-        // }
-        
+        // TODO: In a full implementation, this would trigger dependent updates
         Ok(())
     }
 
@@ -224,26 +104,8 @@ impl<T> Signal<T> {
     }
 }
 
-impl<T> ReactiveNode for Signal<T> {
-    fn update(&mut self) -> Result<(), SignalError> {
-        // Signals don't need to update themselves, they trigger updates in dependents
-        *self.dirty.borrow_mut() = false;
-        Ok(())
-    }
-
-    fn invalidate(&mut self) {
-        *self.dirty.borrow_mut() = true;
-    }
-
-    fn is_dirty(&self) -> bool {
-        *self.dirty.borrow()
-    }
-}
-
 /// A reactive effect that runs when its dependencies change
 pub struct Effect<F> {
-    id: NodeId,
-    scope: Weak<RefCell<ScopeInner>>,
     callback: RefCell<Option<F>>,
     dirty: RefCell<bool>,
 }
@@ -270,30 +132,8 @@ where
     }
 }
 
-impl<F> ReactiveNode for Effect<F>
-where
-    F: FnMut() + 'static,
-{
-    fn update(&mut self) -> Result<(), SignalError> {
-        if *self.dirty.borrow() {
-            self.run()?;
-        }
-        Ok(())
-    }
-
-    fn invalidate(&mut self) {
-        *self.dirty.borrow_mut() = true;
-    }
-
-    fn is_dirty(&self) -> bool {
-        *self.dirty.borrow()
-    }
-}
-
 /// A computed value that derives from other reactive values
 pub struct ReactiveComputed<T, F> {
-    id: NodeId,
-    scope: Weak<RefCell<ScopeInner>>,
     value: RefCell<Option<T>>,
     compute_fn: RefCell<Option<F>>,
     dirty: RefCell<bool>,
@@ -332,75 +172,43 @@ where
     }
 }
 
-impl<T, F> ReactiveNode for ReactiveComputed<T, F>
-where
-    F: FnMut() -> T + 'static,
-    T: 'static,
-{
-    fn update(&mut self) -> Result<(), SignalError> {
-        if *self.dirty.borrow() {
-            self.recompute()?;
-        }
-        Ok(())
-    }
-
-    fn invalidate(&mut self) {
-        *self.dirty.borrow_mut() = true;
-    }
-
-    fn is_dirty(&self) -> bool {
-        *self.dirty.borrow()
-    }
-}
-
 /// Create a new signal with an initial value
-pub fn create_signal<T>(scope: &ReactiveScope, initial_value: T) -> Signal<T>
+pub fn create_signal<T>(_scope: &ReactiveScope, initial_value: T) -> Signal<T>
 where
     T: 'static,
 {
-    let signal = Signal {
-        id: scope.next_id(),
-        scope: Rc::downgrade(&scope.inner),
+    Signal {
         value: Rc::new(RefCell::new(initial_value)),
         dirty: RefCell::new(false),
-    };
-    
-    // Register with scope (simplified for now)
-    signal
+    }
 }
 
 /// Create a new effect that runs when dependencies change
-pub fn create_effect<F>(scope: &ReactiveScope, callback: F) -> Effect<F>
+pub fn create_effect<F>(_scope: &ReactiveScope, callback: F) -> Effect<F>
 where
     F: FnMut() + 'static,
 {
     let effect = Effect {
-        id: scope.next_id(),
-        scope: Rc::downgrade(&scope.inner),
         callback: RefCell::new(Some(callback)),
         dirty: RefCell::new(true), // Start dirty to run on creation
     };
     
-    // Register with scope and run initially
+    // Run initially
     let _ = effect.run();
     effect
 }
 
 /// Create a new computed value
-pub fn create_computed<T, F>(scope: &ReactiveScope, compute_fn: F) -> ReactiveComputed<T, F>
+pub fn create_computed<T, F>(_scope: &ReactiveScope, compute_fn: F) -> ReactiveComputed<T, F>
 where
     F: FnMut() -> T + 'static,
     T: 'static,
 {
-    let computed = ReactiveComputed {
-        id: scope.next_id(),
-        scope: Rc::downgrade(&scope.inner),
+    ReactiveComputed {
         value: RefCell::new(None),
         compute_fn: RefCell::new(Some(compute_fn)),
         dirty: RefCell::new(true), // Start dirty to compute on first access
-    };
-    
-    computed
+    }
 }
 
 #[cfg(test)]
