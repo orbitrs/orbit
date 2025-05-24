@@ -364,9 +364,7 @@ mod tests {
         assert_eq!(hit_tester.stats.hit_tests, 1);
         assert!(hit_tester.stats.nodes_tested > 0);
         assert!(hit_tester.stats.hit_test_time_us > 0);
-        assert_eq!(hit_tester.stats.hits_found, 3);
-
-        // Test stats display
+        assert_eq!(hit_tester.stats.hits_found, 3);        // Test stats display
         let stats_str = format!("{}", hit_tester.stats);
         assert!(stats_str.contains("1 tests"));
         assert!(stats_str.contains("3 hits found"));

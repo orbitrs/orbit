@@ -20,10 +20,9 @@ impl<'a> TemplateParser<'a> {
     }
 
     /// Parse the template section into an AST
-    pub fn parse(&mut self) -> Result<TemplateNode, String> {
-        match self.tokenizer.next_token() {
+    pub fn parse(&mut self) -> Result<TemplateNode, String> {        match self.tokenizer.next_token() {
             Token::OpenTag(tag) => self.parse_element(tag),
-            token => Err(format!("Expected opening tag, got {:?}", token)),
+            token => Err(format!("Expected opening tag, got {token:?}")),
         }
     }
 
@@ -49,14 +48,12 @@ impl<'a> TemplateParser<'a> {
                         Token::ExprStart => {
                             let expr = self.parse_expression()?;
                             attributes.insert(name, AttributeValue::Dynamic(expr));
-                        }
-                        token => return Err(format!("Expected attribute value, got {:?}", token)),
+                        }                        token => return Err(format!("Expected attribute value, got {token:?}")),
                     },
-                    token => return Err(format!("Expected =, got {:?}", token)),
+                    token => return Err(format!("Expected =, got {token:?}")),
                 },
-                Token::CloseTag(close_tag) => {
-                    if close_tag != tag {
-                        return Err(format!("Mismatched tags: {} and {}", tag, close_tag));
+                Token::CloseTag(close_tag) => {                    if close_tag != tag {
+                        return Err(format!("Mismatched tags: {tag} and {close_tag}"));
                     }
                     break;
                 }
@@ -94,9 +91,8 @@ impl<'a> TemplateParser<'a> {
                 }
                 Token::OpenTag(child_tag) => {
                     children.push(self.parse_element(child_tag)?);
-                }
-                Token::Eof => return Err("Unexpected end of template".to_string()),
-                token => return Err(format!("Unexpected token: {:?}", token)),
+                }                Token::Eof => return Err("Unexpected end of template".to_string()),
+                token => return Err(format!("Unexpected token: {token:?}")),
             }
         }
 
@@ -193,9 +189,8 @@ impl<'a> TemplateParser<'a> {
                     expr.push(' ');
                     prev_was_identifier = false;
                     prev_was_operator = false;
-                }
-                Token::Eof => return Err("Unclosed expression".to_string()),
-                token => return Err(format!("Unexpected token in expression: {:?}", token)),
+                }                Token::Eof => return Err("Unclosed expression".to_string()),
+                token => return Err(format!("Unexpected token in expression: {token:?}")),
             }
         }
 

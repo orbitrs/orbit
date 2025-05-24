@@ -42,9 +42,8 @@ impl OrbitParser {
     }
 
     /// Parse an .orbit file from a file path
-    pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<OrbitAst, String> {
-        let content =
-            fs::read_to_string(path).map_err(|e| format!("Failed to read file: {}", e))?;
+    pub fn parse_file<P: AsRef<Path>>(path: P) -> Result<OrbitAst, String> {        let content =
+            fs::read_to_string(path).map_err(|e| format!("Failed to read file: {e}"))?;
         Self::parse(&content)
     }
 
