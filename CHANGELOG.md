@@ -49,10 +49,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Styling system with scoped CSS
 
 ### Fixed
+- WASM build configuration with proper feature flag separation
+- CI/CD pipeline build errors on Linux systems
+- Glutin compilation errors with targeted feature selection
+- Missing pkg-config dependency in CI environment
 - Parser issues with commas in templates
 - Improved whitespace handling in templates
 - Event handler detection with @ prefix
 - Expression parsing with proper spacing around operators
+
+### Build System
+- **WASM Feature Separation**: Fixed workspace feature unification that was causing desktop dependencies to be included in WASM builds
+- **Target-Specific Dependencies**: Implemented proper separation between desktop and web builds using target-specific dependency declarations
+- **CI/CD Package-Specific Builds**: Updated build pipeline to compile specific packages for WASM rather than entire workspace
 
 ## [0.1.0] - 2025-05-21
 - Initial public release

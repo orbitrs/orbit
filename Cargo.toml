@@ -9,10 +9,10 @@ readme = "README.md"
 description = "Core UI framework for the Orbit ecosystem - provides the rendering engine, component model, and framework APIs. Includes the OrbitKit component library."
 
 [features]
-default = ["skia", "desktop"]
+default = ["desktop"]
 skia = ["dep:skia-safe"]
 wgpu = ["dep:wgpu", "dep:bytemuck", "dep:cgmath"]
-desktop = ["dep:glutin", "dep:glutin-winit", "dep:winit", "dep:image", "dep:html5ever", "desktop-gl", "dep:tokio", "dep:reqwest"]
+desktop = ["skia", "dep:glutin", "dep:glutin-winit", "dep:winit", "dep:image", "dep:html5ever", "desktop-gl", "dep:tokio", "dep:reqwest"]
 desktop-gl = ["dep:glium"]
 web = ["dep:web-sys", "web-gl", "dep:wasm-bindgen-futures"]
 web-gl = []
