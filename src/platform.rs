@@ -94,9 +94,7 @@ pub mod desktop {
                 Ok(r) => r,
                 Err(e) => {
                     // Fall back to Skia renderer if Auto selection fails
-                    eprintln!(
-                        "Failed to create Auto renderer: {e}, falling back to Skia"
-                    );
+                    eprintln!("Failed to create Auto renderer: {e}, falling back to Skia");
                     crate::renderer::create_renderer(RendererType::Skia)
                         .expect("Failed to create fallback Skia renderer")
                 }
@@ -138,9 +136,8 @@ pub mod desktop {
         /// Initialize the window
         fn init_window(&mut self) -> Result<(), crate::Error> {
             // Create an event loop
-            let event_loop = EventLoop::new().map_err(|e| {
-                crate::Error::Platform(format!("Failed to create event loop: {e}"))
-            })?;
+            let event_loop = EventLoop::new()
+                .map_err(|e| crate::Error::Platform(format!("Failed to create event loop: {e}")))?;
 
             // Window configuration
             let window_builder = WindowBuilder::new()
