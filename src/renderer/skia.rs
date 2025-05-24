@@ -56,6 +56,7 @@ pub type RendererResult = Result<(), Box<dyn std::error::Error + Send>>;
 /// Skia renderer state
 pub(crate) struct SkiaState {
     /// Skia GPU context
+    #[allow(dead_code)]
     pub(crate) gr_context: DirectContext,
 
     /// Skia render surface

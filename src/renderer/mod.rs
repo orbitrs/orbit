@@ -136,7 +136,7 @@ impl CompositeRenderer {
     }
 
     /// Create a default composite renderer
-    pub fn default() -> Result<Self, crate::Error> {
+    pub fn create_default() -> Result<Self, crate::Error> {
         let renderer_2d = create_renderer(RendererType::Skia)?;
         let renderer_3d = create_renderer(RendererType::Wgpu)?;
 

@@ -13,6 +13,12 @@ use std::sync::{Arc, Mutex, RwLock};
 use crate::component_single::Node;
 use crate::events::Event;
 
+/// Type alias for event handler function
+type EventHandler = Box<dyn Fn(&mut dyn Event, &EventPropagation) + Send + Sync>;
+
+/// Type alias for handler storage map
+type HandlerMap = Arc<RwLock<HashMap<TypeId, Vec<EventHandler>>>>;
+
 /// Specifies the event propagation phase
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PropagationPhase {
@@ -108,25 +114,20 @@ impl<E: Event> DelegatedEvent<E> {
 }
 
 /// Type of callback for delegated events
+#[allow(dead_code)]
 type DelegatedEventCallback<E> = Box<dyn Fn(&mut DelegatedEvent<E>) + Send + Sync>;
 
 /// Event delegate manages capturing, targeting, and bubbling of events
 #[derive(Default)]
 pub struct EventDelegate {
     /// Map of event type to callbacks registered for capturing phase
-    capturing_handlers: Arc<
-        RwLock<HashMap<TypeId, Vec<Box<dyn Fn(&mut dyn Event, &EventPropagation) + Send + Sync>>>>,
-    >,
+    capturing_handlers: HandlerMap,
 
     /// Map of event type to callbacks registered for bubbling phase
-    bubbling_handlers: Arc<
-        RwLock<HashMap<TypeId, Vec<Box<dyn Fn(&mut dyn Event, &EventPropagation) + Send + Sync>>>>,
-    >,
+    bubbling_handlers: HandlerMap,
 
     /// Map of event type to callbacks registered for just that target
-    target_handlers: Arc<
-        RwLock<HashMap<TypeId, Vec<Box<dyn Fn(&mut dyn Event, &EventPropagation) + Send + Sync>>>>,
-    >,
+    target_handlers: HandlerMap,
 
     /// Component ID for identification during propagation
     component_id: Option<usize>,
@@ -169,12 +170,11 @@ impl EventDelegate {
         let type_id = TypeId::of::<E>();
         let mut handlers = self.capturing_handlers.write().unwrap();
 
-        let boxed_handler: Box<dyn Fn(&mut dyn Event, &EventPropagation) + Send + Sync> =
-            Box::new(move |e, prop| {
-                if let Some(event) = e.as_any().downcast_ref::<E>() {
-                    handler(event, prop);
-                }
-            });
+        let boxed_handler: EventHandler = Box::new(move |e, prop| {
+            if let Some(event) = e.as_any().downcast_ref::<E>() {
+                handler(event, prop);
+            }
+        });
 
         handlers.entry(type_id).or_default().push(boxed_handler);
     }
@@ -187,12 +187,11 @@ impl EventDelegate {
         let type_id = TypeId::of::<E>();
         let mut handlers = self.bubbling_handlers.write().unwrap();
 
-        let boxed_handler: Box<dyn Fn(&mut dyn Event, &EventPropagation) + Send + Sync> =
-            Box::new(move |e, prop| {
-                if let Some(event) = e.as_any().downcast_ref::<E>() {
-                    handler(event, prop);
-                }
-            });
+        let boxed_handler: EventHandler = Box::new(move |e, prop| {
+            if let Some(event) = e.as_any().downcast_ref::<E>() {
+                handler(event, prop);
+            }
+        });
 
         handlers.entry(type_id).or_default().push(boxed_handler);
     }
@@ -205,12 +204,11 @@ impl EventDelegate {
         let type_id = TypeId::of::<E>();
         let mut handlers = self.target_handlers.write().unwrap();
 
-        let boxed_handler: Box<dyn Fn(&mut dyn Event, &EventPropagation) + Send + Sync> =
-            Box::new(move |e, prop| {
-                if let Some(event) = e.as_any().downcast_ref::<E>() {
-                    handler(event, prop);
-                }
-            });
+        let boxed_handler: EventHandler = Box::new(move |e, prop| {
+            if let Some(event) = e.as_any().downcast_ref::<E>() {
+                handler(event, prop);
+            }
+        });
 
         handlers.entry(type_id).or_default().push(boxed_handler);
     }
@@ -275,7 +273,7 @@ impl EventDelegate {
         &self,
         event: &E,
         propagation: &mut EventPropagation,
-        target_id: Option<usize>,
+        _target_id: Option<usize>,
     ) {
         // Handle this component's bubbling handlers
         if !propagation.is_propagation_stopped() {
@@ -287,7 +285,7 @@ impl EventDelegate {
         if !propagation.is_propagation_stopped() {
             if let Some(parent) = &self.parent {
                 if let Ok(parent) = parent.lock() {
-                    parent.dispatch_bubbling(event, propagation, target_id);
+                    parent.dispatch_bubbling(event, propagation, _target_id);
                 }
             }
         }

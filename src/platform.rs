@@ -295,7 +295,7 @@ pub mod desktop {
                         target.clear_color(0.2, 0.2, 0.2, 1.0);
 
                         // Get the elapsed time for animation
-                        let elapsed = start_time_clone.elapsed().as_secs_f32(); // Use cloned start_time
+                        let _elapsed = start_time_clone.elapsed().as_secs_f32(); // Use cloned start_time
 
                         // Create a dummy node for demonstration
                         let node = crate::component::Node::default();

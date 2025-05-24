@@ -7,9 +7,11 @@ use std::collections::HashMap;
 #[derive(Clone, Debug)]
 pub struct Context {
     /// State container for managing component and app state
+    #[allow(dead_code)]
     state: StateContainer,
 
     /// Event emitter for handling UI events
+    #[allow(dead_code)]
     events: EventEmitter,
 }
 

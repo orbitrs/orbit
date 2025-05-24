@@ -16,6 +16,7 @@ use crate::Error;
 #[cfg(feature = "wgpu")]
 pub struct WgpuRenderer {
     /// WGPU instance
+    #[allow(dead_code)]
     instance: Instance,
 
     /// WGPU device

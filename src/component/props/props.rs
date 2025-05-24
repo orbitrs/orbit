@@ -197,6 +197,12 @@ impl<P> PropValidator<P> for CompositeValidator<P> {
     }
 }
 
+impl<P> Default for CompositeValidator<P> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Type-safe builder for props
 #[macro_export]
 macro_rules! define_props {

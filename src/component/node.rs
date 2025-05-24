@@ -26,6 +26,7 @@ pub struct Node {
     event_delegate: Option<Arc<Mutex<EventDelegate>>>,
 }
 
+#[allow(dead_code)]
 impl Node {
     /// Create a new node
     pub fn new(component: Option<ComponentInstance>) -> Self {

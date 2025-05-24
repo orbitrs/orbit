@@ -39,7 +39,7 @@ impl std::error::Error for SignalError {}
 
 thread_local! {
     #[doc = "A dependency tracking context for reactive computations"]
-    static CURRENT_EFFECT: RefCell<Option<Rc<RefCell<HashSet<EffectId>>>>> = RefCell::new(None);
+    static CURRENT_EFFECT: RefCell<Option<Rc<RefCell<HashSet<EffectId>>>>> = const { RefCell::new(None) };
 }
 
 type EffectId = u64;
@@ -157,6 +157,7 @@ pub trait SignalBase {
     fn notify(&self);
 
     /// Get the signal's ID
+    #[allow(dead_code)]
     fn id(&self) -> SignalId;
 }
 

@@ -6,6 +6,7 @@ use std::fmt::Debug;
 use std::sync::{Arc, RwLock};
 
 /// A type-erased value that can be stored in a context
+#[allow(dead_code)]
 pub trait ContextValue: Any + Send + Sync {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -93,11 +94,7 @@ impl ContextProvider {
         let result = {
             if let Ok(values) = self.values.read() {
                 if let Some(value) = values.get(&type_id) {
-                    if let Some(typed_value) = value.as_any().downcast_ref::<T>() {
-                        Some(typed_value.clone())
-                    } else {
-                        None
-                    }
+                    value.as_any().downcast_ref::<T>().cloned()
                 } else {
                     None
                 }

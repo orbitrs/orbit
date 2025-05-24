@@ -55,6 +55,7 @@ pub enum LifecyclePhase {
 pub type LifecycleCallback = Box<dyn FnMut(&mut dyn AnyComponent) + Send + Sync>;
 
 /// Lifecycle hook options for components
+#[derive(Default)]
 pub struct LifecycleHooks {
     /// Called when component is mounted to the DOM/renderer
     on_mount: Vec<LifecycleCallback>,
@@ -89,18 +90,6 @@ impl std::fmt::Debug for LifecycleHooks {
                 &format!("[{} callbacks]", self.on_unmount.len()),
             )
             .finish()
-    }
-}
-
-impl Default for LifecycleHooks {
-    fn default() -> Self {
-        Self {
-            on_mount: Vec::new(),
-            on_before_update: Vec::new(),
-            on_update: Vec::new(),
-            on_before_unmount: Vec::new(),
-            on_unmount: Vec::new(),
-        }
     }
 }
 

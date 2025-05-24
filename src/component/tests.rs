@@ -7,6 +7,7 @@ use std::sync::{Arc, Mutex};
 // A simple test component with props
 #[derive(Debug)]
 struct TestComponent {
+    #[allow(dead_code)]
     context: Context,
     props: Arc<Mutex<TestProps>>,
     state: TestComponentState,
