@@ -118,7 +118,7 @@ impl<E: Event> DelegatedEvent<E> {
 type DelegatedEventCallback<E> = Box<dyn Fn(&mut DelegatedEvent<E>) + Send + Sync>;
 
 /// Event delegate manages capturing, targeting, and bubbling of events
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct EventDelegate {
     /// Map of event type to callbacks registered for capturing phase
     capturing_handlers: HandlerMap,

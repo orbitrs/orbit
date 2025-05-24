@@ -60,12 +60,9 @@ impl EventSystem {
             let delegated_event = DelegatedEvent::new(
                 event.clone(),
                 PropagationPhase::Target,
-            );
-
-            // Process the event through delegation
-            if self.delegator.dispatch_event(delegated_event).is_ok() {
-                processed_targets.push(target_id);
-            }
+            );            // Process the event through delegation
+            self.delegator.dispatch(&event, Some(target_id));
+            processed_targets.push(target_id);
         }
 
         Ok(processed_targets)

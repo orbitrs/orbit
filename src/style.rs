@@ -261,7 +261,7 @@ pub struct Style {
 }
 
 /// Color representation supporting multiple formats
-#[derive(Debug, Clone, PartialEq, Hash)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Color {
     Rgba(f32, f32, f32, f32),
     Hex(String),
@@ -269,6 +269,41 @@ pub enum Color {
     Hsl(f32, f32, f32, f32),
     CurrentColor,
     Transparent,
+}
+
+impl std::hash::Hash for Color {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        match self {
+            Color::Rgba(r, g, b, a) => {
+                0u8.hash(state);
+                r.to_bits().hash(state);
+                g.to_bits().hash(state);
+                b.to_bits().hash(state);
+                a.to_bits().hash(state);
+            }
+            Color::Hex(s) => {
+                1u8.hash(state);
+                s.hash(state);
+            }
+            Color::Named(s) => {
+                2u8.hash(state);
+                s.hash(state);
+            }
+            Color::Hsl(h, s, l, a) => {
+                3u8.hash(state);
+                h.to_bits().hash(state);
+                s.to_bits().hash(state);
+                l.to_bits().hash(state);
+                a.to_bits().hash(state);
+            }
+            Color::CurrentColor => {
+                4u8.hash(state);
+            }
+            Color::Transparent => {
+                5u8.hash(state);
+            }
+        }
+    }
 }
 
 /// Visibility values
