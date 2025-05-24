@@ -1,7 +1,7 @@
 //! WGPU renderer base functionality
 
 #[cfg(feature = "wgpu")]
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 #[cfg(feature = "wgpu")]
 use wgpu::{Adapter, Device, Instance, Queue, Surface, SurfaceConfiguration};
 
@@ -25,7 +25,7 @@ pub struct WgpuRenderer {
     queue: Arc<Queue>,
 
     /// WGPU surface
-    surface: Option<Surface>,
+    surface: Option<Surface<'static>>,
 
     /// Surface configuration
     surface_config: Option<SurfaceConfiguration>,
@@ -41,7 +41,8 @@ impl WgpuRenderer {
         // Create WGPU instance
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
             backends: wgpu::Backends::all(),
-            dx12_shader_compiler: Default::default(),
+            flags: wgpu::InstanceFlags::default(),
+            backend_options: wgpu::BackendOptions::default(),
         });
 
         // Select adapter
@@ -59,8 +60,8 @@ impl WgpuRenderer {
             .request_device(
                 &wgpu::DeviceDescriptor {
                     label: Some("Orbit WGPU Device"),
-                    features: wgpu::Features::empty(),
-                    limits: wgpu::Limits::default(),
+                    required_features: wgpu::Features::empty(),
+                    required_limits: wgpu::Limits::default(),
                 },
                 None,
             )
@@ -80,7 +81,7 @@ impl WgpuRenderer {
     /// Configure the renderer with a surface
     pub fn configure_surface(
         &mut self,
-        surface: Surface,
+        surface: Surface<'static>,
         width: u32,
         height: u32,
     ) -> Result<(), Error> {
@@ -100,6 +101,7 @@ impl WgpuRenderer {
             present_mode: surface_caps.present_modes[0],
             alpha_mode: surface_caps.alpha_modes[0],
             view_formats: vec![],
+            desired_maximum_frame_latency: 2, // Default value for most applications
         };
 
         surface.configure(&self.device, &config);
@@ -139,7 +141,12 @@ impl WgpuRenderer {
 
 #[cfg(feature = "wgpu")]
 impl Renderer for WgpuRenderer {
-    fn render(&mut self, root: &Node) -> Result<(), Error> {
+    fn init(&mut self) -> Result<(), crate::Error> {
+        // Nothing to do here as initialization is done in the constructor
+        Ok(())
+    }
+    
+    fn render(&mut self, _root: &Node) -> Result<(), Error> {
         // Get current surface texture
         if let Some(surface) = &self.surface {
             let frame = surface
@@ -170,10 +177,12 @@ impl Renderer for WgpuRenderer {
                                 b: 0.3,
                                 a: 1.0,
                             }),
-                            store: true,
+                            store: wgpu::StoreOp::Store,
                         },
                     })],
                     depth_stencil_attachment: None,
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
                 });
 
                 // Render components from the node tree would happen here
@@ -187,6 +196,19 @@ impl Renderer for WgpuRenderer {
         } else {
             Err(Error::Renderer("Surface not initialized".to_string()))
         }
+    }
+    
+    fn flush(&mut self) -> Result<(), Error> {
+        // WGPU already submits and presents in the render method
+        // No additional flushing needed
+        Ok(())
+    }
+    
+    fn cleanup(&mut self) -> Result<(), Error> {
+        // Release surface
+        self.surface = None;
+        self.surface_config = None;
+        Ok(())
     }
 
     fn name(&self) -> &str {

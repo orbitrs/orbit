@@ -24,8 +24,23 @@ pub enum RendererType {
 
 /// Renderer interface
 pub trait Renderer {
+    /// Initialize the renderer
+    fn init(&mut self) -> Result<(), crate::Error> {
+        Ok(()) // Default implementation does nothing
+    }
+
     /// Render a component tree
     fn render(&mut self, root: &Node) -> Result<(), crate::Error>;
+
+    /// Flush any pending operations
+    fn flush(&mut self) -> Result<(), crate::Error> {
+        Ok(()) // Default implementation does nothing
+    }
+    
+    /// Clean up resources
+    fn cleanup(&mut self) -> Result<(), crate::Error> {
+        Ok(()) // Default implementation does nothing
+    }
 
     /// Get the renderer name
     fn name(&self) -> &str;
@@ -54,8 +69,11 @@ pub fn create_renderer(renderer_type: RendererType) -> Result<Box<dyn Renderer>,
         RendererType::WebGL => {
             #[cfg(feature = "web")]
             {
-                let renderer = WebGLRenderer::new()?;
-                Ok(Box::new(renderer))
+                // WebGL renderer is not yet implemented; this is a placeholder for future implementation
+                // The actual renderer would be defined in a webgl.rs module and imported
+                Err(crate::Error::Renderer(
+                    "WebGL renderer not yet implemented".to_string(),
+                ))
             }
             #[cfg(not(feature = "web"))]
             {
@@ -69,8 +87,10 @@ pub fn create_renderer(renderer_type: RendererType) -> Result<Box<dyn Renderer>,
             {
                 #[cfg(feature = "web")]
                 {
-                    let renderer = WebGLRenderer::new()?;
-                    return Ok(Box::new(renderer));
+                    // WebGL renderer is not yet implemented; this is a placeholder for future implementation
+                    return Err(crate::Error::Renderer(
+                        "WebGL renderer not yet implemented".to_string(),
+                    ));
                 }
                 #[cfg(not(feature = "web"))]
                 {

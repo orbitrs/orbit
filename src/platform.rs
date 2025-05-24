@@ -89,10 +89,19 @@ pub mod desktop {
     impl DesktopAdapter {
         /// Create a new desktop adapter
         pub fn new() -> Self {
+            let renderer_result = crate::renderer::create_renderer(RendererType::Auto);
+            let renderer = match renderer_result {
+                Ok(r) => r,
+                Err(e) => {
+                    // Fall back to Skia renderer if Auto selection fails
+                    eprintln!("Failed to create Auto renderer: {}, falling back to Skia", e);
+                    crate::renderer::create_renderer(RendererType::Skia)
+                        .expect("Failed to create fallback Skia renderer")
+                }
+            };
+            
             Self {
-                renderer: Rc::new(RefCell::new(crate::renderer::create_renderer(
-                    RendererType::Auto,
-                ))), // Wrap in Rc<RefCell<...>>
+                renderer: Rc::new(RefCell::new(renderer)), // Wrap in Rc<RefCell<...>>
                 display: None,
                 event_loop: None,
                 running: false,
@@ -102,10 +111,19 @@ pub mod desktop {
 
         /// Create a new desktop adapter with a specific renderer
         pub fn new_with_renderer(renderer_type: RendererType) -> Self {
+            let renderer_result = crate::renderer::create_renderer(renderer_type);
+            let renderer = match renderer_result {
+                Ok(r) => r,
+                Err(e) => {
+                    // Fall back to Skia renderer if requested renderer fails
+                    eprintln!("Failed to create {:?} renderer: {}, falling back to Skia", renderer_type, e);
+                    crate::renderer::create_renderer(RendererType::Skia)
+                        .expect("Failed to create fallback Skia renderer")
+                }
+            };
+            
             Self {
-                renderer: Rc::new(RefCell::new(crate::renderer::create_renderer(
-                    renderer_type,
-                ))), // Wrap in Rc<RefCell<...>>
+                renderer: Rc::new(RefCell::new(renderer)), // Wrap in Rc<RefCell<...>>
                 display: None,
                 event_loop: None,
                 running: false,
@@ -273,11 +291,14 @@ pub mod desktop {
                         // Get the elapsed time for animation
                         let elapsed = start_time_clone.elapsed().as_secs_f32(); // Use cloned start_time
 
-                        // Create time-based content to render
-                        let content = format!("{{\"time\": {}}}", elapsed); // Corrected escaping
+                        // Create a dummy node for demonstration
+                        let node = crate::component::Node::default();
+                        
+                        // We should construct a proper node tree based on the elapsed time
+                        // and component definitions, but for now we're just using a dummy node
 
                         // Render the UI
-                        if let Err(e) = renderer_rc.borrow_mut().render(content) {
+                        if let Err(e) = renderer_rc.borrow_mut().render(&node) {
                             // Use cloned Rc and borrow_mut()
                             eprintln!("Rendering error: {}", e);
                         }

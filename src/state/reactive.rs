@@ -37,8 +37,9 @@ impl fmt::Display for SignalError {
 
 impl std::error::Error for SignalError {}
 
-/// A dependency tracking context for reactive computations
+#[allow(unused_doc_comments)]
 thread_local! {
+    /// A dependency tracking context for reactive computations
     static CURRENT_EFFECT: RefCell<Option<Rc<RefCell<HashSet<EffectId>>>>> = RefCell::new(None);
 }
 

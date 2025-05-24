@@ -247,6 +247,15 @@ impl Default for SkiaRenderer {
 
 // Implement the Renderer trait for SkiaRenderer
 impl crate::renderer::Renderer for SkiaRenderer {
+    fn init(&mut self) -> Result<(), crate::Error> {
+        // Use default dimensions for now
+        if self.state.is_none() {
+            self.init_skia(800, 600)
+                .map_err(|e| crate::Error::Renderer(format!("{}", e)))?;
+        }
+        Ok(())
+    }
+
     fn render(&mut self, _root: &Node) -> Result<(), crate::Error> {
         // Initialize if not already done
         if self.state.is_none() {
@@ -258,6 +267,24 @@ impl crate::renderer::Renderer for SkiaRenderer {
         // Simple implementation - just draw a test circle for now
         self.draw_test_circle()
             .map_err(|e| crate::Error::Renderer(format!("{}", e)))
+    }
+    
+    fn flush(&mut self) -> Result<(), crate::Error> {
+        // Skia surface doesn't have a flush method like we were expecting
+        // Instead, we'll create a snapshot which will finalize any pending drawing operations
+        if let Some(state) = &mut self.state {
+            // Create a snapshot to ensure drawing operations are completed
+            let _ = state.surface.image_snapshot();
+            Ok(())
+        } else {
+            Ok(()) // No state to flush
+        }
+    }
+    
+    fn cleanup(&mut self) -> Result<(), crate::Error> {
+        // Set state to None to drop all resources
+        self.state = None;
+        Ok(())
     }
 
     fn name(&self) -> &str {

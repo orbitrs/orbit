@@ -113,3 +113,18 @@ impl Node {
         &self.attributes
     }
 }
+
+impl Default for Node {
+    fn default() -> Self {
+        static NEXT_ID: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(1);
+        let id = NEXT_ID.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+
+        Self {
+            component: None,
+            attributes: HashMap::new(),
+            children: Vec::new(),
+            id,
+            event_delegate: Some(Arc::new(Mutex::new(EventDelegate::new(Some(id))))),
+        }
+    }
+}
