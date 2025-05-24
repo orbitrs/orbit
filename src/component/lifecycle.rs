@@ -44,11 +44,9 @@ impl LifecycleManager {
             ));
         }
         let result = if let Ok(component_instance) = self.component.lock() {
-            if let Ok(_inner_component) = component_instance.instance.lock() {
-                // For now, we'll just assume successful initialization
-                // In a real implementation, this would need proper Component trait delegation
-                // through type-safe mechanisms
-                Ok(())
+            if let Ok(mut inner_component) = component_instance.instance.lock() {
+                // Call the component's initialize method through AnyComponent
+                inner_component.any_initialize()
             } else {
                 Err(ComponentError::LockError(
                     "Failed to lock inner component for initialization".to_string(),
@@ -79,7 +77,9 @@ impl LifecycleManager {
 
         // Set mounting phase
         self.phase = LifecyclePhase::Mounting;
-        self.context.set_lifecycle_phase(LifecyclePhase::Mounting); // Execute mount
+        self.context.set_lifecycle_phase(LifecyclePhase::Mounting);
+
+        // Execute mount
         let result = {
             let component_instance = self.component.lock().map_err(|_| {
                 ComponentError::LockError("Failed to lock component for mount".to_string())
@@ -94,8 +94,8 @@ impl LifecycleManager {
             self.context
                 .execute_lifecycle_hooks(LifecyclePhase::Mounting, &mut **inner_component);
 
-            // For now, assume successful mount - we'll implement proper Component trait delegation later
-            Ok(())
+            // Call the component's mount method through AnyComponent
+            inner_component.any_mount()
         };
 
         // Set mounted phase after successful mount
@@ -130,11 +130,13 @@ impl LifecycleManager {
         self.context
             .set_lifecycle_phase(LifecyclePhase::BeforeUpdate);
 
-        // Execute before update hooks
+        // Execute before update hooks and call component's before_update
         let result = {
             let mut component = self.component.lock().map_err(|_| {
                 ComponentError::LockError("Failed to lock component for update".to_string())
-            })?; // Execute lifecycle hooks before update
+            })?;
+
+            // Execute lifecycle hooks before update
             {
                 let mut instance = component.instance.lock().map_err(|_| {
                     ComponentError::LockError(
@@ -144,11 +146,39 @@ impl LifecycleManager {
 
                 self.context
                     .execute_lifecycle_hooks(LifecyclePhase::BeforeUpdate, &mut **instance);
-            } // Update the component with new props
-              // For now, we'll store the props in ComponentInstance and skip the actual update
-              // In a real implementation, this would need proper type-safe prop delegation
+
+                // Call the component's before_update method with cloned props
+                let props_for_before_update = props.box_clone();
+                instance.any_before_update(props_for_before_update)?;
+            }
+
+            // Update the component with new props
+            {
+                let mut instance = component.instance.lock().map_err(|_| {
+                    ComponentError::LockError(
+                        "Failed to lock component instance for update".to_string(),
+                    )
+                })?;
+
+                // Clone the props using the Props trait's box_clone method
+                let props_for_update = props.box_clone();
+                // Call the component's update method
+                instance.any_update(props_for_update)?;
+            }
+
+            // Update the props in ComponentInstance
             component.props = props;
-            Ok(())
+
+            // Call after_update
+            {
+                let mut instance = component.instance.lock().map_err(|_| {
+                    ComponentError::LockError(
+                        "Failed to lock component instance for after_update".to_string(),
+                    )
+                })?;
+
+                instance.any_after_update()
+            }
         };
 
         if result.is_ok() {
@@ -172,7 +202,9 @@ impl LifecycleManager {
         // Before unmount phase
         self.phase = LifecyclePhase::BeforeUnmount;
         self.context
-            .set_lifecycle_phase(LifecyclePhase::BeforeUnmount); // Execute before unmount hooks
+            .set_lifecycle_phase(LifecyclePhase::BeforeUnmount);
+
+        // Execute before unmount hooks and call component's before_unmount
         if let Ok(component_instance) = self.component.lock() {
             let mut inner_component = component_instance.instance.lock().map_err(|_| {
                 ComponentError::LockError(
@@ -183,9 +215,8 @@ impl LifecycleManager {
             self.context
                 .execute_lifecycle_hooks(LifecyclePhase::BeforeUnmount, &mut **inner_component);
 
-            // Delegate to inner component's before_unmount through trait bounds
-            // For now, we'll implement a generic approach since ComponentInstance wraps AnyComponent
-            // In the future, we might need a more sophisticated delegation mechanism
+            // Call the component's before_unmount method
+            inner_component.any_before_unmount()?;
         } else {
             return Err(ComponentError::LockError(
                 "Failed to lock component instance for before_unmount".to_string(),
@@ -195,6 +226,7 @@ impl LifecycleManager {
         // Unmounting phase
         self.phase = LifecyclePhase::Unmounting;
         self.context.set_lifecycle_phase(LifecyclePhase::Unmounting);
+
         let unmount_result = if let Ok(component_instance) = self.component.lock() {
             let mut inner_component = component_instance.instance.lock().map_err(|_| {
                 ComponentError::LockError("Failed to lock inner component for unmount".to_string())
@@ -204,9 +236,8 @@ impl LifecycleManager {
             self.context
                 .execute_lifecycle_hooks(LifecyclePhase::Unmounting, &mut **inner_component);
 
-            // For now, return Ok since we can't call unmount on AnyComponent directly
-            // In the future, this might need enhancement for proper Component trait delegation
-            Ok(())
+            // Call the component's unmount method
+            inner_component.any_unmount()
         } else {
             Err(ComponentError::LockError(
                 "Failed to lock component instance during unmounting".to_string(),

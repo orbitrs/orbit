@@ -104,37 +104,28 @@ impl Rect {
 }
 
 /// Flex direction determines the main axis
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum FlexDirection {
+    #[default]
     Row,
     Column,
     RowReverse,
     ColumnReverse,
 }
 
-impl Default for FlexDirection {
-    fn default() -> Self {
-        FlexDirection::Row
-    }
-}
-
 /// Flex wrap determines whether items wrap to new lines
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum FlexWrap {
+    #[default]
     NoWrap,
     Wrap,
     WrapReverse,
 }
 
-impl Default for FlexWrap {
-    fn default() -> Self {
-        FlexWrap::NoWrap
-    }
-}
-
 /// Justify content controls alignment along the main axis
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum JustifyContent {
+    #[default]
     FlexStart,
     FlexEnd,
     Center,
@@ -143,57 +134,36 @@ pub enum JustifyContent {
     SpaceEvenly,
 }
 
-impl Default for JustifyContent {
-    fn default() -> Self {
-        JustifyContent::FlexStart
-    }
-}
-
 /// Align items controls alignment along the cross axis
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AlignItems {
     FlexStart,
     FlexEnd,
     Center,
+    #[default]
     Stretch,
     Baseline,
 }
 
-impl Default for AlignItems {
-    fn default() -> Self {
-        AlignItems::Stretch
-    }
-}
-
 /// Align content controls alignment of wrapped lines
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum AlignContent {
     FlexStart,
     FlexEnd,
     Center,
     SpaceBetween,
     SpaceAround,
+    #[default]
     Stretch,
 }
 
-impl Default for AlignContent {
-    fn default() -> Self {
-        AlignContent::Stretch
-    }
-}
-
 /// Dimension value can be auto, fixed, or percentage
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub enum Dimension {
+    #[default]
     Auto,
     Points(f32),
     Percent(f32),
-}
-
-impl Default for Dimension {
-    fn default() -> Self {
-        Dimension::Auto
-    }
 }
 
 impl Dimension {
@@ -294,16 +264,11 @@ pub struct LayoutStyle {
     pub column_gap: f32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PositionType {
+    #[default]
     Relative,
     Absolute,
-}
-
-impl Default for PositionType {
-    fn default() -> Self {
-        PositionType::Relative
-    }
 }
 
 impl Default for LayoutStyle {
@@ -505,6 +470,7 @@ impl LayoutEngine {
     }
 
     /// Count total nodes in the tree
+    #[allow(clippy::only_used_in_recursion)]
     fn count_nodes(&self, node: &LayoutNode) -> u32 {
         1 + node
             .children
@@ -574,14 +540,28 @@ impl LayoutEngine {
             _ => style.height.resolve(container_size.height),
         };
 
-        // Apply min/max constraints
-        let final_width = width
-            .max(style.min_width.resolve(container_size.width))
-            .min(style.max_width.resolve(container_size.width));
+        // Apply min/max constraints (only if not Auto)
+        let final_width = {
+            let mut w = width;
+            if !matches!(style.min_width, Dimension::Auto) {
+                w = w.max(style.min_width.resolve(container_size.width));
+            }
+            if !matches!(style.max_width, Dimension::Auto) {
+                w = w.min(style.max_width.resolve(container_size.width));
+            }
+            w
+        };
 
-        let final_height = height
-            .max(style.min_height.resolve(container_size.height))
-            .min(style.max_height.resolve(container_size.height));
+        let final_height = {
+            let mut h = height;
+            if !matches!(style.min_height, Dimension::Auto) {
+                h = h.max(style.min_height.resolve(container_size.height));
+            }
+            if !matches!(style.max_height, Dimension::Auto) {
+                h = h.min(style.max_height.resolve(container_size.height));
+            }
+            h
+        };
 
         // Set the node's size
         node.layout.rect.size = Size::new(final_width, final_height);
@@ -899,15 +879,18 @@ mod tests {
     fn test_simple_layout_calculation() {
         let mut engine = LayoutEngine::new();
         let id = ComponentId::new();
-        let mut style = LayoutStyle::default();
-        style.width = Dimension::Points(100.0);
-        style.height = Dimension::Points(200.0);
+        let style = LayoutStyle {
+            width: Dimension::Points(100.0),
+            height: Dimension::Points(200.0),
+            ..Default::default()
+        };
 
         let mut root = LayoutNode::new(id, style);
         let container_size = Size::new(400.0, 600.0);
 
         let result = engine.calculate_layout(&mut root, container_size);
         assert!(result.is_ok());
+
         assert_eq!(root.layout.rect.width(), 100.0);
         assert_eq!(root.layout.rect.height(), 200.0);
         assert!(!root.layout.is_dirty);
@@ -919,21 +902,27 @@ mod tests {
 
         // Create parent with row flex direction
         let parent_id = ComponentId::new();
-        let mut parent_style = LayoutStyle::default();
-        parent_style.flex_direction = FlexDirection::Row;
-        parent_style.width = Dimension::Points(300.0);
-        parent_style.height = Dimension::Points(100.0);
+        let parent_style = LayoutStyle {
+            flex_direction: FlexDirection::Row,
+            width: Dimension::Points(300.0),
+            height: Dimension::Points(100.0),
+            ..Default::default()
+        };
         let mut parent = LayoutNode::new(parent_id, parent_style);
 
         // Add two children with flex grow
         let child1_id = ComponentId::new();
-        let mut child1_style = LayoutStyle::default();
-        child1_style.flex_grow = 1.0;
+        let child1_style = LayoutStyle {
+            flex_grow: 1.0,
+            ..Default::default()
+        };
         let child1 = LayoutNode::new(child1_id, child1_style);
 
         let child2_id = ComponentId::new();
-        let mut child2_style = LayoutStyle::default();
-        child2_style.flex_grow = 2.0;
+        let child2_style = LayoutStyle {
+            flex_grow: 2.0,
+            ..Default::default()
+        };
         let child2 = LayoutNode::new(child2_id, child2_style);
 
         parent.add_child(child1);
@@ -994,8 +983,10 @@ mod tests {
         let id = ComponentId::new();
 
         // Test row direction
-        let mut style = LayoutStyle::default();
-        style.flex_direction = FlexDirection::Row;
+        let style = LayoutStyle {
+            flex_direction: FlexDirection::Row,
+            ..Default::default()
+        };
         let mut node = LayoutNode::new(id, style);
         node.layout.rect = Rect::new(0.0, 0.0, 100.0, 50.0);
 

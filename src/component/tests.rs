@@ -427,10 +427,12 @@ mod enhanced_tests {
     #[test]
     fn test_component_base_with_layout() {
         let context = Context::new();
-        let mut layout_style = crate::layout::LayoutStyle::default();
-        layout_style.width = crate::layout::Dimension::Points(100.0);
-        layout_style.height = crate::layout::Dimension::Points(200.0);
-        layout_style.flex_direction = crate::layout::FlexDirection::Column;
+        let layout_style = crate::layout::LayoutStyle {
+            width: crate::layout::Dimension::Points(100.0),
+            height: crate::layout::Dimension::Points(200.0),
+            flex_direction: crate::layout::FlexDirection::Column,
+            ..Default::default()
+        };
 
         let base = ComponentBase::new_with_layout(context, layout_style.clone());
 
@@ -452,9 +454,11 @@ mod enhanced_tests {
     #[test]
     fn test_component_layout_node_creation() {
         let context = Context::new();
-        let mut layout_style = crate::layout::LayoutStyle::default();
-        layout_style.width = crate::layout::Dimension::Points(150.0);
-        layout_style.height = crate::layout::Dimension::Points(100.0);
+        let layout_style = crate::layout::LayoutStyle {
+            width: crate::layout::Dimension::Points(150.0),
+            height: crate::layout::Dimension::Points(100.0),
+            ..Default::default()
+        };
 
         let base = ComponentBase::new_with_layout(context, layout_style);
         let layout_node = base.create_layout_node();
@@ -494,9 +498,11 @@ mod enhanced_tests {
         assert_eq!(base.layout_style().flex_grow, 1.0);
 
         // Set new layout style entirely
-        let mut new_style = crate::layout::LayoutStyle::default();
-        new_style.height = crate::layout::Dimension::Percent(50.0);
-        new_style.flex_direction = crate::layout::FlexDirection::Row;
+        let new_style = crate::layout::LayoutStyle {
+            height: crate::layout::Dimension::Percent(50.0),
+            flex_direction: crate::layout::FlexDirection::Row,
+            ..Default::default()
+        };
 
         base.set_layout_style(new_style);
         assert_eq!(
@@ -514,10 +520,12 @@ mod enhanced_tests {
         use crate::layout::{LayoutEngine, Size};
 
         let context = Context::new();
-        let mut layout_style = crate::layout::LayoutStyle::default();
-        layout_style.width = crate::layout::Dimension::Points(100.0);
-        layout_style.height = crate::layout::Dimension::Points(50.0);
-        layout_style.flex_direction = crate::layout::FlexDirection::Row;
+        let layout_style = crate::layout::LayoutStyle {
+            width: crate::layout::Dimension::Points(100.0),
+            height: crate::layout::Dimension::Points(50.0),
+            flex_direction: crate::layout::FlexDirection::Row,
+            ..Default::default()
+        };
 
         let component = ComponentBase::new_with_layout(context, layout_style);
         let mut layout_node = component.create_layout_node();

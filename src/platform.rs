@@ -303,8 +303,12 @@ pub mod desktop {
                         // We should construct a proper node tree based on the elapsed time
                         // and component definitions, but for now we're just using a dummy node
 
+                        // Create render context with default dimensions
+                        let mut render_context = crate::renderer::RenderContext::new(800, 600);
+
                         // Render the UI
-                        if let Err(e) = renderer_rc.borrow_mut().render(&node) {
+                        if let Err(e) = renderer_rc.borrow_mut().render(&node, &mut render_context)
+                        {
                             // Use cloned Rc and borrow_mut()
                             eprintln!("Rendering error: {}", e);
                         }

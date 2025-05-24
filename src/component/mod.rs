@@ -318,6 +318,28 @@ pub trait AnyComponent: Send + Sync + std::any::Any {
 
     /// Get component type name for debugging
     fn type_name(&self) -> &'static str;
+
+    // Lifecycle methods for dynamic dispatch
+    /// Initialize the component (post-creation)
+    fn any_initialize(&mut self) -> Result<(), ComponentError>;
+
+    /// Mount component - called when component is first added to the tree
+    fn any_mount(&mut self) -> Result<(), ComponentError>;
+
+    /// Called before component updates with new props
+    fn any_before_update(&mut self, props: Box<dyn Props>) -> Result<(), ComponentError>;
+
+    /// Update component with new props (type-erased)
+    fn any_update(&mut self, props: Box<dyn Props>) -> Result<(), ComponentError>;
+
+    /// Called after the component has updated
+    fn any_after_update(&mut self) -> Result<(), ComponentError>;
+
+    /// Called before component is unmounted
+    fn any_before_unmount(&mut self) -> Result<(), ComponentError>;
+
+    /// Unmount component - called when component is removed from the tree
+    fn any_unmount(&mut self) -> Result<(), ComponentError>;
 }
 
 /// Enhanced component trait with improved lifecycle management
@@ -558,6 +580,51 @@ impl<T: Component> AnyComponent for T {
 
     fn type_name(&self) -> &'static str {
         std::any::type_name::<T>()
+    }
+
+    // Lifecycle method delegations to the typed Component trait
+    fn any_initialize(&mut self) -> Result<(), ComponentError> {
+        Component::initialize(self)
+    }
+
+    fn any_mount(&mut self) -> Result<(), ComponentError> {
+        Component::mount(self)
+    }
+
+    fn any_before_update(&mut self, props: Box<dyn Props>) -> Result<(), ComponentError> {
+        // Try to downcast the props to the component's Props type
+        if let Some(typed_props) = props.as_any().downcast_ref::<T::Props>() {
+            Component::before_update(self, typed_props)
+        } else {
+            Err(ComponentError::PropsMismatch {
+                expected: TypeId::of::<T::Props>(),
+                got: props.as_any().type_id(),
+            })
+        }
+    }
+
+    fn any_update(&mut self, props: Box<dyn Props>) -> Result<(), ComponentError> {
+        // Try to downcast the props to the component's Props type
+        if let Some(typed_props) = props.as_any().downcast_ref::<T::Props>() {
+            Component::update(self, typed_props.clone())
+        } else {
+            Err(ComponentError::PropsMismatch {
+                expected: TypeId::of::<T::Props>(),
+                got: props.as_any().type_id(),
+            })
+        }
+    }
+
+    fn any_after_update(&mut self) -> Result<(), ComponentError> {
+        Component::after_update(self)
+    }
+
+    fn any_before_unmount(&mut self) -> Result<(), ComponentError> {
+        Component::before_unmount(self)
+    }
+
+    fn any_unmount(&mut self) -> Result<(), ComponentError> {
+        Component::unmount(self)
     }
 }
 

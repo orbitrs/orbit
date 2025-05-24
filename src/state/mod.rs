@@ -191,14 +191,22 @@ impl<T: 'static + Clone + Send + Sync> State<T> {
     }
 
     /// Add a callback that will be called when the state changes
-    pub fn on_change<F>(&self, _callback: F)
+    pub fn on_change<F>(&self, callback: F)
     where
         F: Fn(&T) + Send + Sync + 'static,
     {
+        let container = self.container.clone();
+        let type_id = self.type_id;
+
         self.container.subscribe::<T, _>(move || {
-            // The callback is called when the state changes
-            // Note: We can't pass the actual value here since the generic callback
-            // in subscribe doesn't have access to it
+            // Get the current value and call the callback with it
+            let values = container.values.lock().unwrap();
+            if let Some(value_container) = values.get(&type_id) {
+                let value_lock = value_container.lock().unwrap();
+                if let Some(value) = value_lock.downcast_ref::<T>() {
+                    callback(value);
+                }
+            }
         });
     }
 }
