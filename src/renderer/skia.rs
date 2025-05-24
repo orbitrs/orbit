@@ -25,7 +25,7 @@ pub enum RendererMessage {
 }
 
 /// Custom error type for renderer errors
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum RendererError {
     /// Skia API error
     SkiaError(String),
@@ -244,3 +244,39 @@ impl Default for SkiaRenderer {
         Self::new()
     }
 }
+
+// Implement the Renderer trait for SkiaRenderer
+impl crate::renderer::Renderer for SkiaRenderer {
+    fn render(&mut self, _root: &Node) -> Result<(), crate::Error> {
+        // Initialize if not already done
+        if self.state.is_none() {
+            // Use default dimensions for now
+            self.init_skia(800, 600).map_err(|e| crate::Error::Renderer(format!("{}", e)))?;
+        }
+        
+        // Simple implementation - just draw a test circle for now
+        self.draw_test_circle().map_err(|e| crate::Error::Renderer(format!("{}", e)))
+    }
+
+    fn name(&self) -> &str {
+        "SkiaRenderer"
+    }
+}
+
+// Implement From for common error conversions to allow ? operator
+impl From<String> for RendererError {
+    fn from(error: String) -> Self {
+        RendererError::GeneralError(error)
+    }
+}
+
+// This allows for converting errors when using the ? operator with the renderer
+// Add specific converters for common error types instead of a blanket implementation
+// to avoid conflicts with the built-in From<T> for T implementation
+impl From<std::io::Error> for RendererError {
+    fn from(error: std::io::Error) -> Self {
+        RendererError::GeneralError(error.to_string())
+    }
+}
+
+// Additional specific conversions can be added as needed

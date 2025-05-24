@@ -1,21 +1,21 @@
-// Renderer module for the Orbit UI framework
-//!
-//! This module contains the rendering system for the Orbit UI framework.
-//! It provides a common Renderer trait that can be implemented by different
-//! rendering backends (Skia, WebGL, etc.).
+//! Updated renderer module with WGPU support
 
-// Re-export skia module items
-mod skia;
+// Renderer modules
+pub mod skia;
+pub mod wgpu;
+
+// Re-export renderer items
 pub use skia::{RendererError, RendererMessage, RendererResult, SkiaRenderer};
 
-// No need for these imports here since we're using the actual Renderer trait
-// They're already available in the skia module
+use crate::component::Node;
 
 /// Types of renderers available
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RendererType {
     /// Skia-based renderer
     Skia,
+    /// WGPU-based renderer
+    Wgpu,
     /// WebGL-based renderer (for web)
     WebGL,
     /// Automatic selection based on platform
@@ -23,151 +23,122 @@ pub enum RendererType {
 }
 
 /// Renderer interface
-pub trait Renderer: Send + 'static {
-    /// Initialize the renderer
-    fn init(&mut self) -> Result<(), crate::Error>;
+pub trait Renderer {
+    /// Render a component tree
+    fn render(&mut self, root: &Node) -> Result<(), crate::Error>;
 
-    /// Render content
-    fn render(&mut self, content: String) -> Result<(), crate::Error>;
-
-    /// Flush rendered content to screen
-    fn flush(&mut self) -> Result<(), crate::Error>;
-
-    /// Clean up resources
-    fn cleanup(&mut self) -> Result<(), crate::Error>;
+    /// Get the renderer name
+    fn name(&self) -> &str;
 }
 
 /// Create a renderer of the specified type
-pub fn create_renderer(renderer_type: RendererType) -> Box<dyn Renderer> {
+pub fn create_renderer(renderer_type: RendererType) -> Result<Box<dyn Renderer>, crate::Error> {
     match renderer_type {
-        RendererType::Skia => Box::new(SkiaRenderer::new()),
+        RendererType::Skia => {
+            let renderer = SkiaRenderer::new();
+            Ok(Box::new(renderer))
+        }
+        RendererType::Wgpu => {
+            #[cfg(feature = "wgpu")]
+            {
+                let renderer = futures::executor::block_on(wgpu::WgpuRenderer::new())?;
+                Ok(Box::new(renderer))
+            }
+            #[cfg(not(feature = "wgpu"))]
+            {
+                Err(crate::Error::Renderer(
+                    "WGPU renderer not supported in this build".to_string(),
+                ))
+            }
+        }
         RendererType::WebGL => {
             #[cfg(feature = "web")]
             {
-                Box::new(WebGLRenderer::new())
+                let renderer = WebGLRenderer::new()?;
+                Ok(Box::new(renderer))
             }
             #[cfg(not(feature = "web"))]
             {
-                eprintln!("WebGL renderer not supported in this build, falling back to Skia");
-                Box::new(SkiaRenderer::new())
+                Err(crate::Error::Renderer(
+                    "WebGL renderer not supported in this build".to_string(),
+                ))
             }
         }
         RendererType::Auto => {
             #[cfg(target_arch = "wasm32")]
             {
                 #[cfg(feature = "web")]
-                return Box::new(WebGLRenderer::new());
+                {
+                    let renderer = WebGLRenderer::new()?;
+                    return Ok(Box::new(renderer));
+                }
                 #[cfg(not(feature = "web"))]
-                panic!("No supported renderer for web platform in this build");
+                {
+                    return Err(crate::Error::Renderer(
+                        "No supported renderer for web platform in this build".to_string(),
+                    ));
+                }
             }
 
             #[cfg(not(target_arch = "wasm32"))]
             {
-                Box::new(SkiaRenderer::new())
+                #[cfg(feature = "wgpu")]
+                {
+                    let renderer = futures::executor::block_on(wgpu::WgpuRenderer::new())?;
+                    Ok(Box::new(renderer))
+                }
+                #[cfg(not(feature = "wgpu"))]
+                {
+                    let renderer = SkiaRenderer::new();
+                    Ok(Box::new(renderer))
+                }
             }
         }
     }
 }
 
-#[cfg(feature = "web")]
-pub struct WebGLRenderer {
-    // Web-specific state
+/// Renderer composition for hybrid UIs
+pub struct CompositeRenderer {
+    /// The 2D renderer (usually Skia)
+    pub renderer_2d: Box<dyn Renderer>,
+
+    /// The 3D renderer (usually WGPU)
+    pub renderer_3d: Box<dyn Renderer>,
 }
 
-#[cfg(feature = "web")]
-impl WebGLRenderer {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-#[cfg(feature = "web")]
-impl Default for WebGLRenderer {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[cfg(feature = "web")]
-impl Renderer for WebGLRenderer {
-    fn init(&mut self) -> Result<(), crate::Error> {
-        Ok(())
-    }
-
-    fn render(&mut self, _content: String) -> Result<(), crate::Error> {
-        Ok(())
-    }
-
-    fn flush(&mut self) -> Result<(), crate::Error> {
-        Ok(())
-    }
-
-    fn cleanup(&mut self) -> Result<(), crate::Error> {
-        Ok(())
-    }
-}
-
-impl Renderer for SkiaRenderer {
-    fn init(&mut self) -> Result<(), crate::Error> {
-        // Default size, will be resized as needed
-        self.init_skia(800, 600)
-            .map_err(|e| crate::Error::Renderer(format!("Failed to initialize Skia: {}", e)))
-    }
-
-    fn render(&mut self, content: String) -> Result<(), crate::Error> {
-        // Get the state or return error
-        let state = match &mut self.state {
-            Some(state) => state,
-            None => return Err(crate::Error::Renderer("Renderer not initialized".into())),
-        };
-
-        // Clear the canvas with a light gray color
-        let canvas = state.surface.canvas();
-        canvas.clear(skia_safe::Color4f::new(0.9, 0.9, 0.9, 1.0));
-
-        // Try to parse time from content (if available)
-        let time = if content.contains("time") {
-            // Very simple parser - in a real app we'd use serde_json
-            let time_start = content.find(":").map(|pos| pos + 1).unwrap_or(0);
-            let time_end = content[time_start..]
-                .find("}")
-                .map(|pos| pos + time_start)
-                .unwrap_or(content.len());
-            content[time_start..time_end]
-                .trim()
-                .parse::<f32>()
-                .unwrap_or(0.0)
-        } else {
-            0.0
-        };
-
-        // Draw an animated circle if time is provided, otherwise a static one
-        if time > 0.0 {
-            self.draw_animated_circle(time);
-            Ok(())
-        } else {
-            self.draw_test_circle()
-                .map_err(|e| crate::Error::Renderer(format!("Failed to draw test circle: {}", e)))
+impl CompositeRenderer {
+    /// Create a new composite renderer with the specified renderers
+    pub fn new(renderer_2d: Box<dyn Renderer>, renderer_3d: Box<dyn Renderer>) -> Self {
+        Self {
+            renderer_2d,
+            renderer_3d,
         }
     }
 
-    fn flush(&mut self) -> Result<(), crate::Error> {
-        // Get the state or return error
-        let state = match &mut self.state {
-            Some(state) => state,
-            None => return Err(crate::Error::Renderer("Renderer not initialized".into())),
-        };
+    /// Create a default composite renderer
+    pub fn default() -> Result<Self, crate::Error> {
+        let renderer_2d = create_renderer(RendererType::Skia)?;
+        let renderer_3d = create_renderer(RendererType::Wgpu)?;
 
-        // Flush the GPU context only - Surface doesn't have a flush method in this version
-        state.gr_context.flush(None);
+        Ok(Self {
+            renderer_2d,
+            renderer_3d,
+        })
+    }
+}
+
+impl Renderer for CompositeRenderer {
+    fn render(&mut self, root: &Node) -> Result<(), crate::Error> {
+        // First render 3D elements
+        self.renderer_3d.render(root)?;
+
+        // Then render 2D elements on top
+        self.renderer_2d.render(root)?;
 
         Ok(())
     }
 
-    fn cleanup(&mut self) -> Result<(), crate::Error> {
-        // Reset state to release resources
-        self.state = None;
-
-        Ok(())
+    fn name(&self) -> &str {
+        "Composite Renderer"
     }
 }

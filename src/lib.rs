@@ -1,4 +1,5 @@
 // Core module of the Orbit UI Framework
+pub mod component_single;
 pub mod component;
 pub mod events;
 pub mod parser;
@@ -14,10 +15,22 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Re-export of common types for convenience
 pub mod prelude {
-    pub use crate::component::{Component, Props};
-    pub use crate::events::EventEmitter;
+    pub use crate::component_single::{Context, Node};
+    pub use crate::component::{
+        callback,
+        props::{PropValidationError, PropValidator},
+        Callback, Component, ComponentError, ContextProvider, LifecyclePhase, Props,
+    };
+    pub use crate::events::{
+        delegation::{DelegatedEvent, EventDelegate, PropagationPhase},
+        Event,
+    };
     pub use crate::renderer::Renderer;
-    pub use crate::state::State;
+    pub use crate::state::{
+        create_computed, create_effect, create_signal, Computed, Effect, Signal, State,
+        StateContainer,
+    };
+    pub use winit::event::MouseButton;
 }
 
 /// Initialize the Orbit framework with default settings

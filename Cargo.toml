@@ -8,10 +8,21 @@ repository = "https://github.com/orbitrs/orbit"
 readme = "README.md"
 description = "Core UI framework for the Orbit ecosystem - provides the rendering engine, component model, and framework APIs. Includes the OrbitKit component library."
 
+[features]
+default = ["skia", "gl"]
+skia = ["dep:skia-safe"]
+wgpu = ["dep:wgpu", "dep:bytemuck", "dep:cgmath"]
+gl = ["dep:glium"]
+web = ["dep:web-sys"]
+desktop = []
+embedded = []
+
 [dependencies]
 # Rendering dependencies
-skia-safe = { version = "0.84.0", features = ["binary-cache", "gl", "textlayout"], default-features = false }
+skia-safe = { version = "0.84.0", features = ["binary-cache", "gl", "textlayout"], default-features = false, optional = true }
 wgpu = { version = "0.19.0", optional = true }
+bytemuck = { version = "1.15.0", features = ["derive"], optional = true }
+cgmath = { version = "0.18.0", optional = true }
 glium = { version = "0.34", optional = true }
 glutin = { version = "0.31.3", features = ["egl", "glx", "wgl"] }
 glutin-winit = "0.4.2"
@@ -29,7 +40,7 @@ web-sys = { version = "0.3.66", features = [
     "Node", 
     "Window",
     "console"
-]}
+], optional = true}
 
 # Error handling
 anyhow = "1.0.75"
@@ -49,20 +60,14 @@ futures = "0.3.28"
 reqwest = { version = "0.11", features = ["json"] }
 url = "2.5.0"
 
+# Props macro dependency
+paste = "1.0.15"
+
 # Development utilities
 regex = "1.10.2"
 
 # Added from orbitkit
 rand = "0.8.5"
-
-[features]
-default = ["skia", "gl"]
-skia = []
-wgpu = ["dep:wgpu"]
-gl = ["dep:glium"]
-web = []
-desktop = []
-embedded = []
 
 [lib]
 path = "src/lib.rs"
