@@ -858,19 +858,17 @@ impl StyleEngine {
 
         self.stats.layout_conversions += 1;
         Ok(layout_style)
-    }
-
-    /// Apply responsive sizing rules
+    }    /// Apply responsive sizing rules
     fn apply_responsive_sizing(&self, layout_style: &mut LayoutStyle, context: &StyleContext) {
         // Apply responsive breakpoints and scaling
         let scale_factor = context.device_pixel_ratio;
         
         // Scale dimensions if needed
-        if let Dimension::Points(width) = layout_style.size.width {
-            layout_style.size.width = Dimension::Points(width * scale_factor);
+        if let Dimension::Points(width) = layout_style.width {
+            layout_style.width = Dimension::Points(width * scale_factor);
         }
-        if let Dimension::Points(height) = layout_style.size.height {
-            layout_style.size.height = Dimension::Points(height * scale_factor);
+        if let Dimension::Points(height) = layout_style.height {
+            layout_style.height = Dimension::Points(height * scale_factor);
         }
     }
 
