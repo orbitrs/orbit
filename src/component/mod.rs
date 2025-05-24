@@ -523,14 +523,8 @@ impl Component for ComponentBase {
 
     fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
-    }
-
-    fn lifecycle_phase(&self) -> LifecyclePhase {
+    }    fn lifecycle_phase(&self) -> LifecyclePhase {
         self.lifecycle_phase
-    }
-
-    fn set_lifecycle_phase(&mut self, phase: LifecyclePhase) {
-        self.set_lifecycle_phase(phase);
     }
 }
 

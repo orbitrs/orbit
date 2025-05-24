@@ -1,4 +1,5 @@
 // Skia renderer implementation for the Orbit UI framework
+#![cfg(feature = "skia")]
 use std::{error::Error, fmt, sync::Arc};
 
 use skia_safe::{

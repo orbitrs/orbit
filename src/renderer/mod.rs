@@ -1,10 +1,12 @@
 //! Enhanced renderer module with performance optimizations and component integration
 
 // Renderer modules
+#[cfg(feature = "skia")]
 pub mod skia;
 pub mod wgpu;
 
 // Re-export renderer items
+#[cfg(feature = "skia")]
 pub use skia::{RendererError, RendererMessage, RendererResult, SkiaRenderer};
 
 use crate::component::{ComponentId, Node};
