@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ComponentError","LifecyclePhase"],"fn":["callback"],"mod":["context","error","lifecycle","node","props"],"struct":["Callback","ComponentInstance","ComponentRegistry","Context","ContextProvider","LifecycleHooks","LifecycleManager"],"trait":["AnyComponent","Component","Props","SizedProps"],"type":["ComponentFactory","LifecycleCallback"]};

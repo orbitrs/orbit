@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PlatformType"],"fn":["create_adapter"],"trait":["PlatformAdapter"]};

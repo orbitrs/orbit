@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["PropagationPhase"],"fn":["build_delegation_tree"],"struct":["DelegatedEvent","EventDelegate","EventPropagation"],"type":["DelegatedEventCallback","EventHandler","HandlerMap"]};

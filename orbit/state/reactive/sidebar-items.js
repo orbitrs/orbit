@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["SignalError"],"fn":["create_computed","create_effect","create_signal"],"struct":["Effect","ReactiveComputed","ReactiveScope","Signal"]};

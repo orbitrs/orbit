@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["AttributeValue","LifecycleType","TemplateNode"],"struct":["LifecycleHook","MethodDefinition","OrbitAst","PropDefinition","ScriptNode","StateDefinition","StyleNode","StyleRule"]};

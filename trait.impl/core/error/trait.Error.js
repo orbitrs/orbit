@@ -1,0 +1,9 @@
+(function() {
+    var implementors = Object.fromEntries([["orbit",[["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.87.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"enum\" href=\"orbit/component/enum.ComponentError.html\" title=\"enum orbit::component::ComponentError\">ComponentError</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.87.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"enum\" href=\"orbit/component/props/enum.PropValidationError.html\" title=\"enum orbit::component::props::PropValidationError\">PropValidationError</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.87.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"enum\" href=\"orbit/enum.Error.html\" title=\"enum orbit::Error\">Error</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.87.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"enum\" href=\"orbit/renderer/skia/enum.RendererError.html\" title=\"enum orbit::renderer::skia::RendererError\">RendererError</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.87.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"enum\" href=\"orbit/state/enum.SignalError.html\" title=\"enum orbit::state::SignalError\">SignalError</a>"],["impl <a class=\"trait\" href=\"https://doc.rust-lang.org/1.87.0/core/error/trait.Error.html\" title=\"trait core::error::Error\">Error</a> for <a class=\"enum\" href=\"orbit/style/enum.StyleError.html\" title=\"enum orbit::style::StyleError\">StyleError</a>"]]]]);
+    if (window.register_implementors) {
+        window.register_implementors(implementors);
+    } else {
+        window.pending_implementors = implementors;
+    }
+})()
+//{"start":57,"fragment_lengths":[1652]}
