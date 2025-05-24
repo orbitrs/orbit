@@ -4,7 +4,7 @@
 //! rather than global registries, eliminating circular dependency issues.
 
 use std::{
-    cell::{RefCell, Ref, RefMut},
+    cell::{Ref, RefCell, RefMut},
     rc::Rc,
 };
 
@@ -32,7 +32,7 @@ impl std::fmt::Display for SignalError {
 impl std::error::Error for SignalError {}
 
 /// Reactive scope that manages signals, effects, and computed values
-/// 
+///
 /// This is a simplified implementation focused on basic functionality.
 /// Advanced dependency tracking will be implemented in future versions.
 pub struct ReactiveScope {
@@ -78,10 +78,10 @@ impl<T> Signal<T> {
             let mut val = self.value.borrow_mut();
             *val = value;
         }
-        
+
         // Mark as dirty and trigger updates
         *self.dirty.borrow_mut() = true;
-        
+
         // TODO: In a full implementation, this would trigger dependent updates
         Ok(())
     }
@@ -121,7 +121,7 @@ where
             let callback_ref = self.callback.borrow();
             callback_ref.is_some()
         };
-        
+
         if should_run {
             let mut callback = self.callback.borrow_mut().take().unwrap();
             callback();
@@ -149,7 +149,7 @@ where
         if *self.dirty.borrow() || self.value.borrow().is_none() {
             self.recompute()?;
         }
-        
+
         Ref::filter_map(self.value.borrow(), |opt| opt.as_ref())
             .map_err(|_| SignalError::InvalidState)
     }
@@ -160,7 +160,7 @@ where
             let compute_ref = self.compute_fn.borrow();
             compute_ref.is_some()
         };
-        
+
         if should_compute {
             let mut compute_fn = self.compute_fn.borrow_mut().take().unwrap();
             let new_value = compute_fn();
@@ -192,7 +192,7 @@ where
         callback: RefCell::new(Some(callback)),
         dirty: RefCell::new(true), // Start dirty to run on creation
     };
-    
+
     // Run initially
     let _ = effect.run();
     effect
@@ -219,7 +219,7 @@ mod tests {
     fn test_signal_creation_and_access() {
         let scope = ReactiveScope::new();
         let signal = create_signal(&scope, 42);
-        
+
         assert_eq!(*signal.get(), 42);
     }
 
@@ -227,7 +227,7 @@ mod tests {
     fn test_signal_update() {
         let scope = ReactiveScope::new();
         let signal = create_signal(&scope, 10);
-        
+
         signal.update(|v| *v += 5).unwrap();
         assert_eq!(*signal.get(), 15);
     }
@@ -237,11 +237,11 @@ mod tests {
         let scope = ReactiveScope::new();
         let counter = Rc::new(RefCell::new(0));
         let counter_clone = counter.clone();
-        
+
         let _effect = create_effect(&scope, move || {
             *counter_clone.borrow_mut() += 1;
         });
-        
+
         // Effect should run once on creation
         assert_eq!(*counter.borrow(), 1);
     }
@@ -251,11 +251,9 @@ mod tests {
         let scope = ReactiveScope::new();
         let signal = create_signal(&scope, 5);
         let signal_clone = signal.value.clone();
-        
-        let computed = create_computed(&scope, move || {
-            *signal_clone.borrow() * 2
-        });
-        
+
+        let computed = create_computed(&scope, move || *signal_clone.borrow() * 2);
+
         assert_eq!(*computed.get().unwrap(), 10);
     }
 }
