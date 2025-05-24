@@ -39,12 +39,12 @@ impl EventSystem {
     pub fn new() -> Self {
         Self {
             hit_tester: HitTester::new(),
-            delegator: EventDelegate::new(),
+            delegator: EventDelegate::new(None),
         }
     }
 
     /// Process a pointer event (mouse, touch) with layout hit testing
-    pub fn process_pointer_event<E: Event>(
+    pub fn process_pointer_event<E: Event + Clone>(
         &mut self,
         event: E,
         position: Point,
@@ -58,8 +58,7 @@ impl EventSystem {
 
         for target_id in hit_targets {
             let delegated_event = DelegatedEvent::new(
-                Box::new(event.clone()),
-                target_id,
+                event.clone(),
                 PropagationPhase::Target,
             );
 

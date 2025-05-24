@@ -243,6 +243,56 @@ impl<T: 'static + Clone + Send + Sync> Props for T {
 /// Marker trait to ensure props are sized
 pub trait SizedProps: Props + Sized {}
 
+/// Wraps a component instance with its metadata
+pub struct ComponentInstance {
+    /// Component instance
+    pub instance: Arc<Mutex<Box<dyn AnyComponent>>>,
+    /// Current props
+    pub props: Box<dyn Props>,
+    /// Component type ID for type checking
+    pub type_id: TypeId,
+}
+
+impl ComponentInstance {
+    /// Create a new component instance
+    pub fn new<C: Component + 'static>(instance: C, props: C::Props) -> Self {
+        Self {
+            instance: Arc::new(Mutex::new(Box::new(instance) as Box<dyn AnyComponent>)),
+            props: Box::new(props),
+            type_id: TypeId::of::<C>(),
+        }
+    }
+
+    /// Update the component instance with new props
+    pub fn update<P: Props>(&mut self, props: P) -> Result<(), ComponentError> {
+        let prop_type_id = TypeId::of::<P>();
+
+        // Check that the props type matches
+        if self.type_id != TypeId::of::<P>() {
+            return Err(ComponentError::PropsMismatch {
+                expected: self.type_id,
+                got: prop_type_id,
+            });
+        }
+
+        // Store the new props
+        self.props = Box::new(props);
+
+        // Update the component with the new props
+        let mut instance = self.instance.lock().map_err(|_| {
+            ComponentError::LockError("Failed to lock component for update".to_string())
+        })?;
+        
+        // This is a simplified implementation - in practice we'd need more sophisticated prop handling
+        Ok(())
+    }
+
+    /// Get the component's type ID
+    pub fn type_id(&self) -> TypeId {
+        self.type_id
+    }
+}
+
 /// Type-erased component trait for dynamic dispatch
 pub trait AnyComponent: Send + Sync + std::any::Any {
     /// Get unique component ID for debugging and tracking
@@ -293,9 +343,9 @@ pub trait Component: AnyComponent + Send + Sync + std::any::Any {
     }
 
     /// Called when component state changes and updates are needed
-    fn state_changed(&mut self, state_key: &str) -> Result<(), ComponentError> {
+    fn state_changed(&mut self, _state_key: &str) -> Result<(), ComponentError> {
         // Default implementation requests a re-render
-        self.request_update()
+        Component::request_update(self)
     }
 
     /// Request that this component be re-rendered
@@ -613,7 +663,7 @@ impl Context {
     where
         T: Clone + Send + Sync + 'static,
     {
-        let state = self.state.create_state(initial_value);
+        let state = self.state.create(initial_value);
         
         // Set up state change listener to trigger component updates
         let scheduler = Arc::clone(&self.update_scheduler);
