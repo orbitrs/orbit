@@ -8,6 +8,7 @@ use skia_safe::{
 };
 
 use crate::component::Node;
+use crate::renderer::RenderContext;
 
 /// A message sent to the renderer thread
 #[derive(Clone)]
