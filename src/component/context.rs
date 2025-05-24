@@ -43,8 +43,13 @@ impl Debug for ContextProvider {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ContextProvider")
             .field("parent", &self.parent.is_some())
-            .field("values", &format!("[{} values]", 
-                self.values.read().map(|v| v.len()).unwrap_or(0)))
+            .field(
+                "values",
+                &format!(
+                    "[{} values]",
+                    self.values.read().map(|v| v.len()).unwrap_or(0)
+                ),
+            )
             .finish()
     }
 }
@@ -67,7 +72,10 @@ impl ContextProvider {
     }
 
     /// Set a value in the context
-    pub fn provide<T: Clone + Send + Sync + std::fmt::Debug + 'static>(&self, value: T) -> Result<(), String> {
+    pub fn provide<T: Clone + Send + Sync + std::fmt::Debug + 'static>(
+        &self,
+        value: T,
+    ) -> Result<(), String> {
         let type_id = TypeId::of::<T>();
         if let Ok(mut values) = self.values.write() {
             values.insert(type_id, Box::new(value));

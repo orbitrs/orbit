@@ -1,7 +1,7 @@
-use std::collections::HashMap;
-use crate::state::StateContainer;
-use crate::events::EventEmitter;
 use crate::component::ComponentInstance;
+use crate::events::EventEmitter;
+use crate::state::StateContainer;
+use std::collections::HashMap;
 
 /// Context passed to components providing access to state and events
 #[derive(Clone, Debug)]

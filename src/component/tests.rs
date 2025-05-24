@@ -1,8 +1,6 @@
 //! Tests for component lifecycle management
 
-use crate::component::{
-    Component, ComponentError, Context, LifecycleManager, Node,
-};
+use crate::component::{Component, ComponentError, Context, LifecycleManager, Node};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -64,7 +62,9 @@ impl Component for TestComponent {
     }
 
     fn before_update(&mut self, new_props: &Self::Props) -> Result<(), ComponentError> {
-        self.state.before_update_called.store(true, Ordering::SeqCst);
+        self.state
+            .before_update_called
+            .store(true, Ordering::SeqCst);
         assert_eq!(new_props.message, "Updated", "Expected updated message");
         Ok(())
     }
@@ -77,12 +77,18 @@ impl Component for TestComponent {
 
     fn after_update(&mut self) -> Result<(), ComponentError> {
         self.state.after_update_called.store(true, Ordering::SeqCst);
-        assert_eq!(self.props.lock().unwrap().message, "Updated", "Props should be updated");
+        assert_eq!(
+            self.props.lock().unwrap().message,
+            "Updated",
+            "Props should be updated"
+        );
         Ok(())
     }
 
     fn before_unmount(&mut self) -> Result<(), ComponentError> {
-        self.state.before_unmount_called.store(true, Ordering::SeqCst);
+        self.state
+            .before_unmount_called
+            .store(true, Ordering::SeqCst);
         Ok(())
     }
 
@@ -141,7 +147,9 @@ fn test_component_lifecycle() {
     let mut lifecycle_manager = LifecycleManager::new(instance, context);
 
     // Initialize the component
-    lifecycle_manager.initialize().expect("initialization should succeed");
+    lifecycle_manager
+        .initialize()
+        .expect("initialization should succeed");
 
     // Mount the component
     lifecycle_manager.mount().expect("mount should succeed");
@@ -158,7 +166,9 @@ fn test_component_lifecycle() {
     let updated_props = TestProps {
         message: "Updated".to_string(),
     };
-    lifecycle_manager.update(Box::new(updated_props)).expect("update should succeed");
+    lifecycle_manager
+        .update(Box::new(updated_props))
+        .expect("update should succeed");
 
     // Verify the component was updated
     {

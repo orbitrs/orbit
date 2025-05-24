@@ -77,11 +77,9 @@ impl LifecycleManager {
         // Execute mount
         let result = {
             let mut component = self.component.lock().map_err(|_| {
-                ComponentError::LockError(
-                    "Failed to lock component for mount".to_string(),
-                )
+                ComponentError::LockError("Failed to lock component for mount".to_string())
             })?;
-            
+
             // Call mount on the component
             component.mount()?;
 
@@ -136,11 +134,9 @@ impl LifecycleManager {
         // Execute before update hooks
         let result = {
             let mut component = self.component.lock().map_err(|_| {
-                ComponentError::LockError(
-                    "Failed to lock component for update".to_string(),
-                )
+                ComponentError::LockError("Failed to lock component for update".to_string())
             })?;
-            
+
             // Execute lifecycle hooks before update
             {
                 let mut instance = component.instance.lock().map_err(|_| {

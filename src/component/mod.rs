@@ -72,10 +72,22 @@ impl std::fmt::Debug for LifecycleHooks {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LifecycleHooks")
             .field("on_mount", &format!("[{} callbacks]", self.on_mount.len()))
-            .field("on_before_update", &format!("[{} callbacks]", self.on_before_update.len()))
-            .field("on_update", &format!("[{} callbacks]", self.on_update.len()))
-            .field("on_before_unmount", &format!("[{} callbacks]", self.on_before_unmount.len()))
-            .field("on_unmount", &format!("[{} callbacks]", self.on_unmount.len()))
+            .field(
+                "on_before_update",
+                &format!("[{} callbacks]", self.on_before_update.len()),
+            )
+            .field(
+                "on_update",
+                &format!("[{} callbacks]", self.on_update.len()),
+            )
+            .field(
+                "on_before_unmount",
+                &format!("[{} callbacks]", self.on_before_unmount.len()),
+            )
+            .field(
+                "on_unmount",
+                &format!("[{} callbacks]", self.on_unmount.len()),
+            )
             .finish()
     }
 }
@@ -407,7 +419,6 @@ impl Context {
 // Removed ComponentWrapper as it was causing lifetime issues
 // We can reimplement it later if needed
 
-
 // Node struct is now defined in component_single.rs
 
 /// Trait for type-erased components that can participate in the component lifecycle
@@ -515,7 +526,7 @@ impl AnyComponent for Box<dyn AnyComponent> {
     fn mount(&mut self) -> Result<(), ComponentError> {
         (**self).mount()
     }
-    
+
     fn update(&mut self, props: Box<dyn Props>) -> Result<(), ComponentError> {
         (**self).update(props)
     }
@@ -814,7 +825,9 @@ impl AnyComponent for ComponentInstance {
         if let Ok(mut instance) = self.instance.lock() {
             instance.initialize()
         } else {
-            Err(ComponentError::LockError("Failed to lock component instance".to_string()))
+            Err(ComponentError::LockError(
+                "Failed to lock component instance".to_string(),
+            ))
         }
     }
 
@@ -823,7 +836,9 @@ impl AnyComponent for ComponentInstance {
         if let Ok(mut instance) = self.instance.lock() {
             instance.mount()
         } else {
-            Err(ComponentError::LockError("Failed to lock component instance".to_string()))
+            Err(ComponentError::LockError(
+                "Failed to lock component instance".to_string(),
+            ))
         }
     }
 
@@ -832,7 +847,9 @@ impl AnyComponent for ComponentInstance {
         if let Ok(mut instance) = self.instance.lock() {
             instance.update(props)
         } else {
-            Err(ComponentError::LockError("Failed to lock component instance".to_string()))
+            Err(ComponentError::LockError(
+                "Failed to lock component instance".to_string(),
+            ))
         }
     }
 
@@ -841,7 +858,9 @@ impl AnyComponent for ComponentInstance {
         if let Ok(mut instance) = self.instance.lock() {
             instance.before_update(props)
         } else {
-            Err(ComponentError::LockError("Failed to lock component instance".to_string()))
+            Err(ComponentError::LockError(
+                "Failed to lock component instance".to_string(),
+            ))
         }
     }
 
@@ -850,7 +869,9 @@ impl AnyComponent for ComponentInstance {
         if let Ok(mut instance) = self.instance.lock() {
             instance.after_update()
         } else {
-            Err(ComponentError::LockError("Failed to lock component instance".to_string()))
+            Err(ComponentError::LockError(
+                "Failed to lock component instance".to_string(),
+            ))
         }
     }
 
@@ -859,7 +880,9 @@ impl AnyComponent for ComponentInstance {
         if let Ok(mut instance) = self.instance.lock() {
             instance.before_unmount()
         } else {
-            Err(ComponentError::LockError("Failed to lock component instance".to_string()))
+            Err(ComponentError::LockError(
+                "Failed to lock component instance".to_string(),
+            ))
         }
     }
 
@@ -868,7 +891,9 @@ impl AnyComponent for ComponentInstance {
         if let Ok(mut instance) = self.instance.lock() {
             instance.unmount()
         } else {
-            Err(ComponentError::LockError("Failed to lock component instance".to_string()))
+            Err(ComponentError::LockError(
+                "Failed to lock component instance".to_string(),
+            ))
         }
     }
 
@@ -877,7 +902,9 @@ impl AnyComponent for ComponentInstance {
         if let Ok(instance) = self.instance.lock() {
             instance.render()
         } else {
-            Err(ComponentError::LockError("Failed to lock component instance".to_string()))
+            Err(ComponentError::LockError(
+                "Failed to lock component instance".to_string(),
+            ))
         }
     }
 

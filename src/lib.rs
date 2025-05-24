@@ -1,6 +1,6 @@
 // Core module of the Orbit UI Framework
-pub mod component_single;
 pub mod component;
+pub mod component_single;
 pub mod events;
 pub mod parser;
 pub mod platform;
@@ -15,12 +15,12 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// Re-export of common types for convenience
 pub mod prelude {
-    pub use crate::component_single::{Context, Node};
     pub use crate::component::{
         callback,
         props::{PropValidationError, PropValidator},
         Callback, Component, ComponentError, ContextProvider, LifecyclePhase, Props,
     };
+    pub use crate::component_single::{Context, Node};
     pub use crate::events::{
         delegation::{DelegatedEvent, EventDelegate, PropagationPhase},
         Event,

@@ -251,11 +251,13 @@ impl crate::renderer::Renderer for SkiaRenderer {
         // Initialize if not already done
         if self.state.is_none() {
             // Use default dimensions for now
-            self.init_skia(800, 600).map_err(|e| crate::Error::Renderer(format!("{}", e)))?;
+            self.init_skia(800, 600)
+                .map_err(|e| crate::Error::Renderer(format!("{}", e)))?;
         }
-        
+
         // Simple implementation - just draw a test circle for now
-        self.draw_test_circle().map_err(|e| crate::Error::Renderer(format!("{}", e)))
+        self.draw_test_circle()
+            .map_err(|e| crate::Error::Renderer(format!("{}", e)))
     }
 
     fn name(&self) -> &str {
