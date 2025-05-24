@@ -567,7 +567,7 @@ impl ComponentInstance {
         Self {
             instance: Arc::new(Mutex::new(Box::new(instance) as Box<dyn AnyComponent>)),
             props: Box::new(props),
-            type_id: TypeId::of::<C>(),
+            type_id: TypeId::of::<C::Props>(),
         }
     }
 
