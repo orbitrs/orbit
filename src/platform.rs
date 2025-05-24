@@ -190,8 +190,7 @@ pub mod desktop {
                             .create_context(&gl_config, &context_attribs)
                             .map_err(|e| {
                                 crate::Error::Platform(format!(
-                                    "Failed to create GL context: {:?}",
-                                    e
+                                    "Failed to create GL context: {e:?}"
                                 ))
                             })?
                     };
@@ -206,8 +205,7 @@ pub mod desktop {
                             .create_window_surface(&gl_config, &attrs)
                             .map_err(|e| {
                                 crate::Error::Platform(format!(
-                                    "Failed to create window surface: {:?}",
-                                    e
+                                    "Failed to create window surface: {e:?}"
                                 ))
                             })?
                     };
