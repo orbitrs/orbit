@@ -999,23 +999,9 @@ impl LayoutEngine {
                 continue;
             }
 
-            // First calculate the size of each child
-            let mut cross_sizes = Vec::with_capacity(line_indices.len());
-            for &child_index in line_indices {
-                let child = &children[child_index];
-                let child_cross_size = if is_row {
-                    child.style.height.resolve(container_size.height)
-                } else {
-                    child.style.width.resolve(container_size.width)
-                };
-                cross_sizes.push(child_cross_size);
-            }
-
-            // Line cross size is the maximum of all child cross sizes
-            let max_cross_size = cross_sizes
-                .iter()
-                .fold(0.0f32, |max_val, &val| max_val.max(val));
-            line_cross_sizes.push(max_cross_size);
+            // Calculate the cross size for this line
+            let line_cross_size = self.calculate_line_cross_size(children, line_indices, is_row);
+            line_cross_sizes.push(line_cross_size);
         }
 
         // Now layout each line with the proper measurements
