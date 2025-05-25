@@ -903,13 +903,12 @@ impl LayoutEngine {
                     current_pos += item.main_size + space_evenly;
                 }
             }
-        }
-
-        if is_reverse {
+        }        if is_reverse {
             // Reverse the positions for reverse flex directions
-            for pos in &mut positions {
-                *pos = container_size - *pos - items[positions.len() - 1 - 
-                    positions.iter().position(|&p| p == *pos).unwrap()].main_size;
+            let positions_len = positions.len();
+            for (i, pos) in positions.iter_mut().enumerate() {
+                let item_index = positions_len - 1 - i;
+                *pos = container_size - *pos - items[item_index].main_size;
             }
             positions.reverse();
         }
@@ -1074,7 +1073,6 @@ impl Gap {
     pub fn uniform(value: f32) -> Self {
         Self::new(value, value)
     }
-}
 }
 
 impl Default for LayoutEngine {
