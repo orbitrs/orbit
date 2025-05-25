@@ -66,7 +66,8 @@ impl WgpuRenderer {
                     required_limits: wgpu::Limits::default(),
                 },
                 None,
-            )            .await
+            )
+            .await
             .map_err(|e| Error::Renderer(format!("Failed to create device: {e}")))?;
 
         Ok(Self {
