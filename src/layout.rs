@@ -938,9 +938,7 @@ impl LayoutEngine {
                 0.0
             }
         }
-    }
-
-    /// Layout children with flex wrap (multi-line)
+    }    /// Layout children with flex wrap (multi-line)
     fn layout_flex_multiline(
         &mut self,
         children: &mut [LayoutNode],
@@ -953,6 +951,10 @@ impl LayoutEngine {
             flex_direction,
             FlexDirection::Row | FlexDirection::RowReverse
         );
+        let is_reverse = matches!(
+            parent_style.flex_wrap,
+            FlexWrap::WrapReverse
+        );
 
         let main_axis_size = if is_row {
             container_size.width
@@ -962,33 +964,53 @@ impl LayoutEngine {
 
         // Break items into lines
         let lines = self.break_into_lines(children, child_indices, main_axis_size, is_row)?;
+        
+        if lines.is_empty() {
+            return Ok(());
+        }
 
         // Layout each line
         let mut cross_offset = 0.0;
         for line_indices in lines {
-            // Calculate line height/width
+            if line_indices.is_empty() {
+                continue;
+            }
+              // Calculate line height/width (maximum cross size of items in this line)
             let line_cross_size = self.calculate_line_cross_size(children, &line_indices, is_row);
             
-            // Layout this line
+            // Layout this line, preserving the container's cross size
             self.layout_flex_line(children, &line_indices, container_size, parent_style)?;
             
-            // Offset items in this line by cross_offset
+            // Update the Y position for all items in this line
             for &child_index in &line_indices {
                 let child = &mut children[child_index];
                 if is_row {
-                    child.layout.rect.origin.y += cross_offset;
+                    child.layout.rect.origin.y = cross_offset;
                 } else {
-                    child.layout.rect.origin.x += cross_offset;
+                    child.layout.rect.origin.x = cross_offset;
                 }
             }
             
-            cross_offset += line_cross_size + parent_style.gap.row;
+            // Move to the next line
+            let gap = if is_row { parent_style.gap.row } else { parent_style.gap.column };
+            cross_offset += line_cross_size + gap;
+        }
+
+        // Handle wrap-reverse if needed
+        if is_reverse {
+            let total_cross_size = cross_offset - (if is_row { parent_style.gap.row } else { parent_style.gap.column });
+            for &child_index in child_indices {
+                let child = &mut children[child_index];
+                if is_row {
+                    child.layout.rect.origin.y = total_cross_size - child.layout.rect.origin.y - child.layout.rect.height();
+                } else {
+                    child.layout.rect.origin.x = total_cross_size - child.layout.rect.origin.x - child.layout.rect.width();
+                }
+            }
         }
 
         Ok(())
-    }
-
-    /// Break items into lines for wrapping
+    }    /// Break items into lines for wrapping
     fn break_into_lines(
         &self,
         children: &[LayoutNode],
@@ -996,6 +1018,7 @@ impl LayoutEngine {
         main_axis_size: f32,
         is_row: bool,
     ) -> Result<Vec<Vec<usize>>, LayoutError> {
+        // Simple but effective algorithm for breaking items into lines
         let mut lines = Vec::new();
         let mut current_line = Vec::new();
         let mut current_line_size = 0.0;
@@ -1008,25 +1031,27 @@ impl LayoutEngine {
                 child.style.height.resolve(main_axis_size)
             };
 
+            // If this is the first item in a line OR it fits on the current line
             if current_line.is_empty() || current_line_size + item_size <= main_axis_size {
                 current_line.push(child_index);
                 current_line_size += item_size;
             } else {
                 // Start a new line
-                lines.push(current_line);
-                current_line = vec![child_index];
+                lines.push(current_line.clone()); // Clone to avoid ownership issues
+                current_line.clear();
+                current_line.push(child_index);
                 current_line_size = item_size;
             }
         }
 
+        // Add the last line if it's not empty
         if !current_line.is_empty() {
             lines.push(current_line);
         }
 
         Ok(lines)
-    }
-
-    /// Calculate the cross-axis size of a line
+    }    /// Calculate the cross-axis size of a line
+    #[allow(dead_code)]
     fn calculate_line_cross_size(
         &self,
         children: &[LayoutNode],
@@ -1050,7 +1075,9 @@ impl LayoutEngine {
 /// Data for a flex item during layout calculation
 #[derive(Debug, Clone)]
 struct FlexItemData {
+    #[allow(dead_code)]
     index: usize,
+    #[allow(dead_code)]
     basis_size: f32,
     main_size: f32,
     cross_size: f32,
@@ -1346,10 +1373,8 @@ mod tests {
             height: Dimension::Points(100.0),
             ..Default::default()
         };
-        let mut parent = LayoutNode::new(parent_id, parent_style);
-
-        // Add children with fixed sizes
-        for i in 0..3 {
+        let mut parent = LayoutNode::new(parent_id, parent_style);        // Add children with fixed sizes
+        for _ in 0..3 {
             let child_id = ComponentId::new();
             let child_style = LayoutStyle {
                 width: Dimension::Points(50.0),
