@@ -66,9 +66,8 @@ impl WgpuRenderer {
                     required_limits: wgpu::Limits::default(),
                 },
                 None,
-            )
-            .await
-            .map_err(|e| Error::Renderer(format!("Failed to create device: {}", e)))?;
+            )            .await
+            .map_err(|e| Error::Renderer(format!("Failed to create device: {e}")))?;
 
         Ok(Self {
             instance,
@@ -153,7 +152,7 @@ impl Renderer for WgpuRenderer {
         if let Some(surface) = &self.surface {
             let frame = surface
                 .get_current_texture()
-                .map_err(|e| Error::Renderer(format!("Failed to get next frame: {}", e)))?;
+                .map_err(|e| Error::Renderer(format!("Failed to get next frame: {e}")))?;
 
             let view = frame
                 .texture
