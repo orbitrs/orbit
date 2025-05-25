@@ -64,7 +64,8 @@ impl LifecycleManager {
         }
 
         result
-    }    /// Mount the component to the tree
+    }
+    /// Mount the component to the tree
     pub fn mount(&mut self) -> Result<(), ComponentError> {
         if self.phase != LifecyclePhase::Created {
             return Err(ComponentError::InvalidLifecycleTransition(
@@ -75,11 +76,21 @@ impl LifecycleManager {
 
         // Create mount context
         let mount_context = crate::component::MountContext::new(
-            self.component.lock().map_err(|_| {
-                ComponentError::LockError("Failed to lock component for mount context".to_string())
-            })?.instance.lock().map_err(|_| {
-                ComponentError::LockError("Failed to lock inner component for mount context".to_string())
-            })?.component_id()
+            self.component
+                .lock()
+                .map_err(|_| {
+                    ComponentError::LockError(
+                        "Failed to lock component for mount context".to_string(),
+                    )
+                })?
+                .instance
+                .lock()
+                .map_err(|_| {
+                    ComponentError::LockError(
+                        "Failed to lock inner component for mount context".to_string(),
+                    )
+                })?
+                .component_id(),
         );
 
         // Before mount phase - call before_mount hook
@@ -89,7 +100,9 @@ impl LifecycleManager {
             })?;
 
             let mut inner_component = component_instance.instance.lock().map_err(|_| {
-                ComponentError::LockError("Failed to lock inner component for before_mount".to_string())
+                ComponentError::LockError(
+                    "Failed to lock inner component for before_mount".to_string(),
+                )
             })?;
 
             inner_component.any_before_mount()
@@ -133,11 +146,15 @@ impl LifecycleManager {
             // Call after_mount hook
             let after_mount_result = {
                 let component_instance = self.component.lock().map_err(|_| {
-                    ComponentError::LockError("Failed to lock component for after_mount".to_string())
+                    ComponentError::LockError(
+                        "Failed to lock component for after_mount".to_string(),
+                    )
                 })?;
 
                 let mut inner_component = component_instance.instance.lock().map_err(|_| {
-                    ComponentError::LockError("Failed to lock inner component for after_mount".to_string())
+                    ComponentError::LockError(
+                        "Failed to lock inner component for after_mount".to_string(),
+                    )
                 })?;
 
                 inner_component.any_after_mount()

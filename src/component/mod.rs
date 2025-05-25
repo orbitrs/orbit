@@ -20,8 +20,8 @@ pub use lifecycle::LifecycleManager;
 // Import Node from our own node module instead of component_single
 pub use node::Node;
 pub use state_tracking::{
-    StateChange, StateChanges, StateSnapshot, StateTracker, StateTrackingConfig, StateValue,
-    ChangePriority
+    ChangePriority, StateChange, StateChanges, StateSnapshot, StateTracker, StateTrackingConfig,
+    StateValue,
 };
 
 use std::{
@@ -396,7 +396,11 @@ impl UnmountContext {
     }
 
     /// Create an unmount context with parent
-    pub fn with_parent(component_id: ComponentId, parent_id: ComponentId, reason: UnmountReason) -> Self {
+    pub fn with_parent(
+        component_id: ComponentId,
+        parent_id: ComponentId,
+        reason: UnmountReason,
+    ) -> Self {
         Self {
             component_id,
             parent_id: Some(parent_id),
@@ -450,7 +454,8 @@ pub trait AnyComponent: Send + Sync + std::any::Any {
     fn any_update(&mut self, props: Box<dyn Props>) -> Result<(), ComponentError>;
 
     /// Called after the component has updated
-    fn any_after_update(&mut self) -> Result<(), ComponentError>;    /// Called before component is unmounted
+    fn any_after_update(&mut self) -> Result<(), ComponentError>;
+    /// Called before component is unmounted
     fn any_before_unmount(&mut self) -> Result<(), ComponentError>;
 
     /// Unmount component - called when component is removed from the tree
@@ -493,7 +498,8 @@ pub trait Component: AnyComponent + Send + Sync + std::any::Any {
     /// Use this for setting up initial state and registering lifecycle hooks
     fn initialize(&mut self) -> Result<(), ComponentError> {
         Ok(())
-    }    /// Mount component - called when component is first added to the tree
+    }
+    /// Mount component - called when component is first added to the tree
     /// Automatic state change detection and update scheduling is enabled after this point
     fn mount(&mut self) -> Result<(), ComponentError> {
         Ok(())
@@ -552,7 +558,8 @@ pub trait Component: AnyComponent + Send + Sync + std::any::Any {
     /// Called after the component has updated
     fn after_update(&mut self) -> Result<(), ComponentError> {
         Ok(())
-    }    /// Called before component is unmounted
+    }
+    /// Called before component is unmounted
     /// Automatic cleanup of state subscriptions happens after this
     fn before_unmount(&mut self) -> Result<(), ComponentError> {
         Ok(())
@@ -779,7 +786,8 @@ impl<T: Component> AnyComponent for T {
 
     fn any_after_update(&mut self) -> Result<(), ComponentError> {
         Component::after_update(self)
-    }    fn any_before_unmount(&mut self) -> Result<(), ComponentError> {
+    }
+    fn any_before_unmount(&mut self) -> Result<(), ComponentError> {
         Component::before_unmount(self)
     }
 

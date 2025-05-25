@@ -1,5 +1,5 @@
 //! State change detection and tracking for Orbit components
-//! 
+//!
 //! This module provides efficient state change detection, dirty checking,
 //! and state diff computation for optimized component updates.
 
@@ -123,18 +123,18 @@ impl StateSnapshot {
         use std::hash::{Hash, Hasher};
 
         let mut hasher = DefaultHasher::new();
-        
+
         // Sort keys for consistent hashing
         let mut sorted_keys: Vec<_> = fields.keys().collect();
         sorted_keys.sort();
-        
+
         for key in sorted_keys {
             key.hash(&mut hasher);
             if let Some(value) = fields.get(key) {
                 value.hash(&mut hasher);
             }
         }
-        
+
         hasher.finish()
     }
 
@@ -146,7 +146,7 @@ impl StateSnapshot {
         // Check for modified fields
         for (field_name, new_value) in &other.fields {
             let old_value = self.fields.get(field_name);
-            
+
             if old_value.map(|v| v != new_value).unwrap_or(true) {
                 changes.push(StateChange {
                     field_name: field_name.clone(),
@@ -232,13 +232,19 @@ impl StateTracker {
     /// Create a state tracker with default configuration
     pub fn new_default(component_id: ComponentId) -> Self {
         Self::new(component_id, StateTrackingConfig::default())
-    }    /// Update the current state and detect changes
-    pub fn update_state(&mut self, new_fields: HashMap<String, StateValue>) -> Result<Option<StateChanges>, ComponentError> {
+    }
+    /// Update the current state and detect changes
+    pub fn update_state(
+        &mut self,
+        new_fields: HashMap<String, StateValue>,
+    ) -> Result<Option<StateChanges>, ComponentError> {
         let new_snapshot = StateSnapshot::new(new_fields);
-        
+
         // Check if enough time has passed for a new snapshot
         if let Some(ref current) = self.current_state {
-            if new_snapshot.timestamp.duration_since(current.timestamp) < self.config.snapshot_throttle {
+            if new_snapshot.timestamp.duration_since(current.timestamp)
+                < self.config.snapshot_throttle
+            {
                 return Ok(None);
             }
         }
@@ -248,20 +254,22 @@ impl StateTracker {
             previous.diff(&new_snapshot)
         } else {
             // First state - all fields are new
-            new_snapshot.fields.iter().map(|(field_name, value)| {
-                StateChange {
+            new_snapshot
+                .fields
+                .iter()
+                .map(|(field_name, value)| StateChange {
                     field_name: field_name.clone(),
                     old_value: None,
                     new_value: value.clone(),
                     timestamp: new_snapshot.timestamp,
                     priority: ChangePriority::Normal,
-                }
-            }).collect()
+                })
+                .collect()
         };
 
         // Update state snapshots
         self.previous_state = self.current_state.take();
-        self.current_state = Some(new_snapshot);        // Add changes to batch
+        self.current_state = Some(new_snapshot); // Add changes to batch
         for change in changes {
             self.dirty_fields.insert(change.field_name.clone(), true);
             self.change_batch.push(change);
@@ -287,17 +295,25 @@ impl StateTracker {
 
     /// Get all dirty fields
     pub fn get_dirty_fields(&self) -> Vec<String> {
-        self.dirty_fields.iter()
-            .filter_map(|(field, is_dirty)| {
-                if *is_dirty { Some(field.clone()) } else { None }
-            })
+        self.dirty_fields
+            .iter()
+            .filter_map(
+                |(field, is_dirty)| {
+                    if *is_dirty {
+                        Some(field.clone())
+                    } else {
+                        None
+                    }
+                },
+            )
             .collect()
     }
 
     /// Check if any fields are dirty
     pub fn has_dirty_fields(&self) -> bool {
         self.dirty_fields.values().any(|&dirty| dirty)
-    }    /// Force flush of current batch
+    }
+    /// Force flush of current batch
     pub fn flush_batch(&mut self) -> StateChanges {
         let changes = StateChanges {
             changes: std::mem::take(&mut self.change_batch),
@@ -307,7 +323,7 @@ impl StateTracker {
 
         // Note: Don't clear dirty flags here - they should be cleared explicitly
         // via mark_field_clean to allow fine-grained control
-        
+
         changes
     }
 
@@ -330,7 +346,9 @@ impl StateTracker {
         }
 
         // Check for critical priority changes
-        self.change_batch.iter().any(|change| change.priority == ChangePriority::Critical)
+        self.change_batch
+            .iter()
+            .any(|change| change.priority == ChangePriority::Critical)
     }
 
     /// Get the component ID being tracked
@@ -379,14 +397,17 @@ impl StateChanges {
 
     /// Get changes affecting a specific field
     pub fn changes_for_field(&self, field_name: &str) -> Vec<&StateChange> {
-        self.changes.iter()
+        self.changes
+            .iter()
             .filter(|change| change.field_name == field_name)
             .collect()
     }
 
     /// Check if this batch contains critical changes
     pub fn has_critical_changes(&self) -> bool {
-        self.changes.iter().any(|change| change.priority == ChangePriority::Critical)
+        self.changes
+            .iter()
+            .any(|change| change.priority == ChangePriority::Critical)
     }
 
     /// Sort changes by priority
@@ -406,10 +427,13 @@ mod tests {
         fields.insert("name".to_string(), StateValue::String("test".to_string()));
 
         let snapshot = StateSnapshot::new(fields);
-        
+
         assert_eq!(snapshot.fields.len(), 2);
         assert_eq!(snapshot.fields.get("count"), Some(&StateValue::Integer(42)));
-        assert_eq!(snapshot.fields.get("name"), Some(&StateValue::String("test".to_string())));
+        assert_eq!(
+            snapshot.fields.get("name"),
+            Some(&StateValue::String("test".to_string()))
+        );
     }
 
     #[test]
@@ -423,12 +447,13 @@ mod tests {
         let snapshot2 = StateSnapshot::new(fields2);
 
         let changes = snapshot1.diff(&snapshot2);
-        
+
         assert_eq!(changes.len(), 1);
         assert_eq!(changes[0].field_name, "count");
         assert_eq!(changes[0].old_value, Some(StateValue::Integer(1)));
         assert_eq!(changes[0].new_value, StateValue::Integer(2));
-    }    #[test]
+    }
+    #[test]
     fn test_state_tracker_dirty_fields() {
         let component_id = ComponentId::new();
         let mut config = StateTrackingConfig::default();
@@ -437,21 +462,22 @@ mod tests {
 
         let mut fields = HashMap::new();
         fields.insert("count".to_string(), StateValue::Integer(1));
-        
+
         let changes = tracker.update_state(fields).unwrap();
-        
+
         assert!(tracker.is_field_dirty("count"));
         assert!(changes.is_some());
-        
+
         tracker.mark_field_clean("count");
         assert!(!tracker.is_field_dirty("count"));
-    }    #[test]
+    }
+    #[test]
     fn test_batch_flushing() {
         let component_id = ComponentId::new();
         let mut config = StateTrackingConfig::default();
         config.max_batch_size = 2; // Small batch size for testing
         config.snapshot_throttle = Duration::from_nanos(1); // Very small throttle for testing
-        
+
         let mut tracker = StateTracker::new(component_id, config);
 
         // Add first change
@@ -465,7 +491,7 @@ mod tests {
         fields2.insert("count".to_string(), StateValue::Integer(2));
         let changes2 = tracker.update_state(fields2).unwrap();
         assert!(changes2.is_some()); // Should flush now
-        
+
         let changes = changes2.unwrap();
         assert_eq!(changes.changes.len(), 2);
     }
