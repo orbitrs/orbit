@@ -257,7 +257,7 @@ pub struct LayoutStyle {
     // Spacing
     pub margin: EdgeValues,
     pub padding: EdgeValues,
-    pub border: EdgeValues,    // Gap
+    pub border: EdgeValues, // Gap
     pub gap: Gap,
 }
 
@@ -293,7 +293,8 @@ impl Default for LayoutStyle {
             align_self: None,
             margin: EdgeValues::default(),
             padding: EdgeValues::default(),
-            border: EdgeValues::default(),            gap: Gap::default(),
+            border: EdgeValues::default(),
+            gap: Gap::default(),
         }
     }
 }
@@ -590,7 +591,8 @@ impl LayoutEngine {
         }
 
         Ok(())
-    }    /// Layout children using flexbox algorithm
+    }
+    /// Layout children using flexbox algorithm
     fn layout_flex_children(&mut self, parent: &mut LayoutNode) -> Result<(), LayoutError> {
         if parent.children.is_empty() {
             return Ok(());
@@ -606,7 +608,9 @@ impl LayoutEngine {
         // Layout relatively positioned children with flexbox
         if !relative_children.is_empty() {
             // Check if wrapping is enabled
-            if parent_style.flex_wrap == FlexWrap::Wrap || parent_style.flex_wrap == FlexWrap::WrapReverse {
+            if parent_style.flex_wrap == FlexWrap::Wrap
+                || parent_style.flex_wrap == FlexWrap::WrapReverse
+            {
                 self.layout_flex_multiline(
                     &mut parent.children,
                     &relative_children,
@@ -630,7 +634,8 @@ impl LayoutEngine {
         }
 
         Ok(())
-    }    /// Layout a single flex line
+    }
+    /// Layout a single flex line
     fn layout_flex_line(
         &mut self,
         children: &mut [LayoutNode],
@@ -667,7 +672,7 @@ impl LayoutEngine {
 
         for &child_index in child_indices {
             let child = &children[child_index];
-            
+
             // Calculate basis size
             let basis_size = self.calculate_flex_basis_size(child, container_size, is_row)?;
             let main_size = self.resolve_main_size(child, basis_size, is_row);
@@ -688,12 +693,21 @@ impl LayoutEngine {
         }
 
         // Add gap sizes to total
-        let gap_size = if is_row { parent_style.gap.column } else { parent_style.gap.row };
+        let gap_size = if is_row {
+            parent_style.gap.column
+        } else {
+            parent_style.gap.row
+        };
         let total_gaps = gap_size * (child_indices.len() as f32 - 1.0).max(0.0);
         let available_space = main_axis_size - total_basis_size - total_gaps;
 
         // Second pass: Distribute available space
-        self.distribute_flex_space(&mut item_data, available_space, total_flex_grow, total_flex_shrink)?;
+        self.distribute_flex_space(
+            &mut item_data,
+            available_space,
+            total_flex_grow,
+            total_flex_shrink,
+        )?;
 
         // Third pass: Apply justify-content for positioning
         let positions = self.calculate_justify_content_positions(
@@ -709,7 +723,7 @@ impl LayoutEngine {
             let child = &mut children[child_index];
             let item = &item_data[i];
             let main_pos = positions[i];
-            
+
             // Calculate cross-axis position
             let cross_pos = self.calculate_cross_axis_position(
                 child,
@@ -730,7 +744,8 @@ impl LayoutEngine {
         }
 
         Ok(())
-    }    /// Clear the layout cache
+    }
+    /// Clear the layout cache
     pub fn clear_cache(&mut self) {
         self.layout_cache.clear();
     }
@@ -844,7 +859,7 @@ impl LayoutEngine {
         is_reverse: bool,
     ) -> Vec<f32> {
         let mut positions = Vec::with_capacity(items.len());
-        
+
         if items.is_empty() {
             return positions;
         }
@@ -903,7 +918,8 @@ impl LayoutEngine {
                     current_pos += item.main_size + space_evenly;
                 }
             }
-        }        if is_reverse {
+        }
+        if is_reverse {
             // Reverse the positions for reverse flex directions
             let positions_len = positions.len();
             for (i, pos) in positions.iter_mut().enumerate() {
@@ -938,7 +954,9 @@ impl LayoutEngine {
                 0.0
             }
         }
-    }    /// Layout children with flex wrap (multi-line)
+    }
+
+    /// Layout children with flex wrap (multi-line)
     fn layout_flex_multiline(
         &mut self,
         children: &mut [LayoutNode],
@@ -951,66 +969,112 @@ impl LayoutEngine {
             flex_direction,
             FlexDirection::Row | FlexDirection::RowReverse
         );
-        let is_reverse = matches!(
-            parent_style.flex_wrap,
-            FlexWrap::WrapReverse
-        );
+        let is_reverse = matches!(parent_style.flex_wrap, FlexWrap::WrapReverse);
 
+        // Get the main axis size
         let main_axis_size = if is_row {
             container_size.width
         } else {
             container_size.height
-        };
-
-        // Break items into lines
+        }; // Break items into lines
         let lines = self.break_into_lines(children, child_indices, main_axis_size, is_row)?;
-        
+
         if lines.is_empty() {
             return Ok(());
         }
 
         // Layout each line
-        let mut cross_offset = 0.0;
-        for line_indices in lines {
+        let cross_gap = if is_row {
+            parent_style.gap.row
+        } else {
+            parent_style.gap.column
+        };
+
+        // First calculate all line cross sizes so we have proper measurements
+        let mut line_cross_sizes = Vec::with_capacity(lines.len());
+
+        for line_indices in &lines {
+            if line_indices.is_empty() {
+                line_cross_sizes.push(0.0);
+                continue;
+            }
+
+            // First calculate the size of each child
+            let mut cross_sizes = Vec::with_capacity(line_indices.len());
+            for &child_index in line_indices {
+                let child = &children[child_index];
+                let child_cross_size = if is_row {
+                    child.style.height.resolve(container_size.height)
+                } else {
+                    child.style.width.resolve(container_size.width)
+                };
+                cross_sizes.push(child_cross_size);
+            }
+
+            // Line cross size is the maximum of all child cross sizes
+            let max_cross_size = cross_sizes
+                .iter()
+                .fold(0.0f32, |max_val, &val| max_val.max(val));
+            line_cross_sizes.push(max_cross_size);
+        }
+
+        // Now layout each line with the proper measurements
+        let mut current_cross_pos = 0.0;
+        for (i, line_indices) in lines.iter().enumerate() {
             if line_indices.is_empty() {
                 continue;
             }
-              // Calculate line height/width (maximum cross size of items in this line)
-            let line_cross_size = self.calculate_line_cross_size(children, &line_indices, is_row);
-            
-            // Layout this line, preserving the container's cross size
-            self.layout_flex_line(children, &line_indices, container_size, parent_style)?;
-            
-            // Update the Y position for all items in this line
-            for &child_index in &line_indices {
+
+            // Create a container size specific to this line
+            let line_container = if is_row {
+                Size::new(main_axis_size, container_size.height)
+            } else {
+                Size::new(container_size.width, main_axis_size)
+            };
+
+            // Layout this line
+            self.layout_flex_line(children, line_indices, line_container, parent_style)?;
+            // First, recursively layout all children in this line
+            for &child_index in line_indices {
+                let child = &mut children[child_index];
+                self.layout_node(child, child.layout.rect.size)?;
+            }
+
+            // Then set the cross axis position for all items in this line
+            for &child_index in line_indices {
                 let child = &mut children[child_index];
                 if is_row {
-                    child.layout.rect.origin.y = cross_offset;
+                    // Row layout - update Y position (cross axis)
+                    child.layout.rect.origin.y = current_cross_pos;
                 } else {
-                    child.layout.rect.origin.x = cross_offset;
+                    // Column layout - update X position (cross axis)
+                    child.layout.rect.origin.x = current_cross_pos;
                 }
             }
-            
+
             // Move to the next line
-            let gap = if is_row { parent_style.gap.row } else { parent_style.gap.column };
-            cross_offset += line_cross_size + gap;
+            current_cross_pos += line_cross_sizes[i] + cross_gap;
         }
 
         // Handle wrap-reverse if needed
         if is_reverse {
-            let total_cross_size = cross_offset - (if is_row { parent_style.gap.row } else { parent_style.gap.column });
+            let total_cross_size = current_cross_pos - cross_gap;
             for &child_index in child_indices {
                 let child = &mut children[child_index];
                 if is_row {
-                    child.layout.rect.origin.y = total_cross_size - child.layout.rect.origin.y - child.layout.rect.height();
+                    child.layout.rect.origin.y =
+                        total_cross_size - child.layout.rect.origin.y - child.layout.rect.height();
                 } else {
-                    child.layout.rect.origin.x = total_cross_size - child.layout.rect.origin.x - child.layout.rect.width();
+                    child.layout.rect.origin.x =
+                        total_cross_size - child.layout.rect.origin.x - child.layout.rect.width();
                 }
             }
         }
 
         Ok(())
-    }    /// Break items into lines for wrapping
+    }
+
+    /// Break items into lines for wrapping
     fn break_into_lines(
         &self,
         children: &[LayoutNode],
@@ -1023,6 +1087,13 @@ impl LayoutEngine {
         let mut current_line = Vec::new();
         let mut current_line_size = 0.0;
 
+        // Get the appropriate gap size
+        let gap_size = if is_row {
+            children.first().map_or(0.0, |child| child.style.gap.column)
+        } else {
+            children.first().map_or(0.0, |child| child.style.gap.row)
+        };
+
         for &child_index in child_indices {
             let child = &children[child_index];
             let item_size = if is_row {
@@ -1031,15 +1102,23 @@ impl LayoutEngine {
                 child.style.height.resolve(main_axis_size)
             };
 
-            // If this is the first item in a line OR it fits on the current line
-            if current_line.is_empty() || current_line_size + item_size <= main_axis_size {
+            // Calculate the additional size needed if this isn't the first item (for gap)
+            let gap_to_add = if current_line.is_empty() {
+                0.0
+            } else {
+                gap_size
+            };
+
+            // If this is the first item in a line OR it fits on the current line (including gap)
+            if current_line.is_empty()
+                || current_line_size + gap_to_add + item_size <= main_axis_size
+            {
                 current_line.push(child_index);
-                current_line_size += item_size;
+                current_line_size += item_size + gap_to_add;
             } else {
                 // Start a new line
-                lines.push(current_line.clone()); // Clone to avoid ownership issues
-                current_line.clear();
-                current_line.push(child_index);
+                lines.push(current_line);
+                current_line = vec![child_index]; // Create a new Vec instead of clearing
                 current_line_size = item_size;
             }
         }
@@ -1050,22 +1129,36 @@ impl LayoutEngine {
         }
 
         Ok(lines)
-    }    /// Calculate the cross-axis size of a line
-    #[allow(dead_code)]
+    }
+    /// Calculate the cross-axis size of a line
     fn calculate_line_cross_size(
         &self,
         children: &[LayoutNode],
         line_indices: &[usize],
         is_row: bool,
     ) -> f32 {
+        if line_indices.is_empty() {
+            return 0.0;
+        }
+
         line_indices
             .iter()
             .map(|&index| {
                 let child = &children[index];
                 if is_row {
-                    child.layout.rect.height()
+                    // For row layout, the cross size is the height
+                    match child.style.height {
+                        Dimension::Points(h) => h,
+                        Dimension::Percent(p) => p * child.layout.rect.height(),
+                        Dimension::Auto => child.layout.rect.height(),
+                    }
                 } else {
-                    child.layout.rect.width()
+                    // For column layout, the cross size is the width
+                    match child.style.width {
+                        Dimension::Points(w) => w,
+                        Dimension::Percent(p) => p * child.layout.rect.width(),
+                        Dimension::Auto => child.layout.rect.width(),
+                    }
                 }
             })
             .fold(0.0, f32::max)
@@ -1341,7 +1434,8 @@ mod tests {
         assert!(display_string.contains("1000μs"));
         assert!(display_string.contains("10 nodes"));
         assert!(display_string.contains("3/7 cache"));
-    }    #[test]
+    }
+    #[test]
     fn test_main_cross_axis_calculations() {
         let id = ComponentId::new();
 
@@ -1373,7 +1467,7 @@ mod tests {
             height: Dimension::Points(100.0),
             ..Default::default()
         };
-        let mut parent = LayoutNode::new(parent_id, parent_style);        // Add children with fixed sizes
+        let mut parent = LayoutNode::new(parent_id, parent_style); // Add children with fixed sizes
         for _ in 0..3 {
             let child_id = ComponentId::new();
             let child_style = LayoutStyle {
@@ -1649,13 +1743,15 @@ mod tests {
             let child = LayoutNode::new(ComponentId::new(), child_style);
             parent.add_child(child);
         }
-
         let container_size = Size::new(300.0, 400.0);
         let result = engine.calculate_layout(&mut parent, container_size);
         assert!(result.is_ok());
 
         // First two children should be on first line, third on second line
-        assert_eq!(parent.children[0].layout.rect.y(), parent.children[1].layout.rect.y());
+        assert_eq!(
+            parent.children[0].layout.rect.y(),
+            parent.children[1].layout.rect.y()
+        );
         assert!(parent.children[2].layout.rect.y() > parent.children[0].layout.rect.y());
     }
 
