@@ -16,8 +16,8 @@ mod tests;
 pub use context::{callback, Callback, ContextProvider};
 pub use error::ComponentError;
 pub use lifecycle::LifecycleManager;
-// Import Node from component_single
-pub use crate::component_single::Node;
+// Import Node from our own node module instead of component_single
+pub use node::Node;
 
 use std::{
     any::TypeId,
