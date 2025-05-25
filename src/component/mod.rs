@@ -8,6 +8,7 @@ mod error;
 mod lifecycle;
 mod node;
 pub mod props;
+mod state_tracking;
 
 #[cfg(test)]
 mod tests;
@@ -18,6 +19,10 @@ pub use error::ComponentError;
 pub use lifecycle::LifecycleManager;
 // Import Node from our own node module instead of component_single
 pub use node::Node;
+pub use state_tracking::{
+    StateChange, StateChanges, StateSnapshot, StateTracker, StateTrackingConfig, StateValue,
+    ChangePriority
+};
 
 use std::{
     any::TypeId,
@@ -296,6 +301,118 @@ impl ComponentInstance {
     }
 }
 
+/// Context provided during component mounting
+#[derive(Debug, Clone)]
+pub struct MountContext {
+    /// Component ID being mounted
+    pub component_id: ComponentId,
+    /// Parent component ID (if any)
+    pub parent_id: Option<ComponentId>,
+    /// Mount timestamp
+    pub timestamp: std::time::Instant,
+    /// Mount options and configuration
+    pub options: MountOptions,
+}
+
+/// Options for component mounting
+#[derive(Debug, Clone, Default)]
+pub struct MountOptions {
+    /// Whether to enable automatic state tracking
+    pub enable_state_tracking: bool,
+    /// Whether to register lifecycle hooks
+    pub register_hooks: bool,
+    /// Custom mounting data
+    pub custom_data: HashMap<String, String>,
+}
+
+/// Context provided during component unmounting
+#[derive(Debug, Clone)]
+pub struct UnmountContext {
+    /// Component ID being unmounted
+    pub component_id: ComponentId,
+    /// Parent component ID (if any)
+    pub parent_id: Option<ComponentId>,
+    /// Unmount timestamp
+    pub timestamp: std::time::Instant,
+    /// Unmount reason
+    pub reason: UnmountReason,
+    /// Whether cleanup should be forced
+    pub force_cleanup: bool,
+}
+
+/// Reasons for component unmounting
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UnmountReason {
+    /// Component was explicitly removed
+    Removed,
+    /// Parent component was unmounted
+    ParentUnmounted,
+    /// Component replacement
+    Replaced,
+    /// Application shutdown
+    Shutdown,
+    /// Error condition
+    Error,
+}
+
+impl MountContext {
+    /// Create a new mount context
+    pub fn new(component_id: ComponentId) -> Self {
+        Self {
+            component_id,
+            parent_id: None,
+            timestamp: std::time::Instant::now(),
+            options: MountOptions::default(),
+        }
+    }
+
+    /// Create a mount context with parent
+    pub fn with_parent(component_id: ComponentId, parent_id: ComponentId) -> Self {
+        Self {
+            component_id,
+            parent_id: Some(parent_id),
+            timestamp: std::time::Instant::now(),
+            options: MountOptions::default(),
+        }
+    }
+
+    /// Set mount options
+    pub fn with_options(mut self, options: MountOptions) -> Self {
+        self.options = options;
+        self
+    }
+}
+
+impl UnmountContext {
+    /// Create a new unmount context
+    pub fn new(component_id: ComponentId, reason: UnmountReason) -> Self {
+        Self {
+            component_id,
+            parent_id: None,
+            timestamp: std::time::Instant::now(),
+            reason,
+            force_cleanup: false,
+        }
+    }
+
+    /// Create an unmount context with parent
+    pub fn with_parent(component_id: ComponentId, parent_id: ComponentId, reason: UnmountReason) -> Self {
+        Self {
+            component_id,
+            parent_id: Some(parent_id),
+            timestamp: std::time::Instant::now(),
+            reason,
+            force_cleanup: false,
+        }
+    }
+
+    /// Set force cleanup flag
+    pub fn with_force_cleanup(mut self, force: bool) -> Self {
+        self.force_cleanup = force;
+        self
+    }
+}
+
 /// Type-erased component trait for dynamic dispatch
 pub trait AnyComponent: Send + Sync + std::any::Any {
     /// Get unique component ID for debugging and tracking
@@ -333,13 +450,30 @@ pub trait AnyComponent: Send + Sync + std::any::Any {
     fn any_update(&mut self, props: Box<dyn Props>) -> Result<(), ComponentError>;
 
     /// Called after the component has updated
-    fn any_after_update(&mut self) -> Result<(), ComponentError>;
-
-    /// Called before component is unmounted
+    fn any_after_update(&mut self) -> Result<(), ComponentError>;    /// Called before component is unmounted
     fn any_before_unmount(&mut self) -> Result<(), ComponentError>;
 
     /// Unmount component - called when component is removed from the tree
     fn any_unmount(&mut self) -> Result<(), ComponentError>;
+
+    // Enhanced lifecycle methods for dynamic dispatch
+    /// Enhanced mount with context
+    fn any_on_mount(&mut self, context: &MountContext) -> Result<(), ComponentError>;
+
+    /// Before mount hook
+    fn any_before_mount(&mut self) -> Result<(), ComponentError>;
+
+    /// After mount hook  
+    fn any_after_mount(&mut self) -> Result<(), ComponentError>;
+
+    /// Enhanced update with state changes
+    fn any_on_update(&mut self, changes: &StateChanges) -> Result<(), ComponentError>;
+
+    /// Enhanced unmount with context
+    fn any_on_unmount(&mut self, context: &UnmountContext) -> Result<(), ComponentError>;
+
+    /// After unmount hook
+    fn any_after_unmount(&mut self) -> Result<(), ComponentError>;
 }
 
 /// Enhanced component trait with improved lifecycle management
@@ -359,11 +493,25 @@ pub trait Component: AnyComponent + Send + Sync + std::any::Any {
     /// Use this for setting up initial state and registering lifecycle hooks
     fn initialize(&mut self) -> Result<(), ComponentError> {
         Ok(())
-    }
-
-    /// Mount component - called when component is first added to the tree
+    }    /// Mount component - called when component is first added to the tree
     /// Automatic state change detection and update scheduling is enabled after this point
     fn mount(&mut self) -> Result<(), ComponentError> {
+        Ok(())
+    }
+
+    /// Enhanced lifecycle hook - called when component is mounted with context
+    fn on_mount(&mut self, _context: &MountContext) -> Result<(), ComponentError> {
+        // Default implementation calls the basic mount
+        self.mount()
+    }
+
+    /// Enhanced lifecycle hook - called before mount for initialization
+    fn before_mount(&mut self) -> Result<(), ComponentError> {
+        Ok(())
+    }
+
+    /// Enhanced lifecycle hook - called after mount for post-initialization
+    fn after_mount(&mut self) -> Result<(), ComponentError> {
         Ok(())
     }
 
@@ -371,6 +519,11 @@ pub trait Component: AnyComponent + Send + Sync + std::any::Any {
     fn state_changed(&mut self, _state_key: &str) -> Result<(), ComponentError> {
         // Default implementation requests a re-render
         Component::request_update(self)
+    }
+
+    /// Enhanced lifecycle hook - called when state changes are detected
+    fn on_update(&mut self, _changes: &StateChanges) -> Result<(), ComponentError> {
+        Ok(())
     }
 
     /// Request that this component be re-rendered
@@ -399,11 +552,20 @@ pub trait Component: AnyComponent + Send + Sync + std::any::Any {
     /// Called after the component has updated
     fn after_update(&mut self) -> Result<(), ComponentError> {
         Ok(())
-    }
-
-    /// Called before component is unmounted
+    }    /// Called before component is unmounted
     /// Automatic cleanup of state subscriptions happens after this
     fn before_unmount(&mut self) -> Result<(), ComponentError> {
+        Ok(())
+    }
+
+    /// Enhanced lifecycle hook - called when component is unmounted with context
+    fn on_unmount(&mut self, _context: &UnmountContext) -> Result<(), ComponentError> {
+        // Default implementation calls the basic unmount
+        self.unmount()
+    }
+
+    /// Enhanced lifecycle hook - called after unmount for final cleanup
+    fn after_unmount(&mut self) -> Result<(), ComponentError> {
         Ok(())
     }
 
@@ -617,14 +779,37 @@ impl<T: Component> AnyComponent for T {
 
     fn any_after_update(&mut self) -> Result<(), ComponentError> {
         Component::after_update(self)
-    }
-
-    fn any_before_unmount(&mut self) -> Result<(), ComponentError> {
+    }    fn any_before_unmount(&mut self) -> Result<(), ComponentError> {
         Component::before_unmount(self)
     }
 
     fn any_unmount(&mut self) -> Result<(), ComponentError> {
         Component::unmount(self)
+    }
+
+    // Enhanced lifecycle method delegations
+    fn any_on_mount(&mut self, context: &MountContext) -> Result<(), ComponentError> {
+        Component::on_mount(self, context)
+    }
+
+    fn any_before_mount(&mut self) -> Result<(), ComponentError> {
+        Component::before_mount(self)
+    }
+
+    fn any_after_mount(&mut self) -> Result<(), ComponentError> {
+        Component::after_mount(self)
+    }
+
+    fn any_on_update(&mut self, changes: &StateChanges) -> Result<(), ComponentError> {
+        Component::on_update(self, changes)
+    }
+
+    fn any_on_unmount(&mut self, context: &UnmountContext) -> Result<(), ComponentError> {
+        Component::on_unmount(self, context)
+    }
+
+    fn any_after_unmount(&mut self) -> Result<(), ComponentError> {
+        Component::after_unmount(self)
     }
 }
 

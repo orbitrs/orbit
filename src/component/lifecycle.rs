@@ -64,9 +64,7 @@ impl LifecycleManager {
         }
 
         result
-    }
-
-    /// Mount the component to the tree
+    }    /// Mount the component to the tree
     pub fn mount(&mut self) -> Result<(), ComponentError> {
         if self.phase != LifecyclePhase::Created {
             return Err(ComponentError::InvalidLifecycleTransition(
@@ -75,17 +73,43 @@ impl LifecycleManager {
             ));
         }
 
+        // Create mount context
+        let mount_context = crate::component::MountContext::new(
+            self.component.lock().map_err(|_| {
+                ComponentError::LockError("Failed to lock component for mount context".to_string())
+            })?.instance.lock().map_err(|_| {
+                ComponentError::LockError("Failed to lock inner component for mount context".to_string())
+            })?.component_id()
+        );
+
+        // Before mount phase - call before_mount hook
+        let before_mount_result = {
+            let component_instance = self.component.lock().map_err(|_| {
+                ComponentError::LockError("Failed to lock component for before_mount".to_string())
+            })?;
+
+            let mut inner_component = component_instance.instance.lock().map_err(|_| {
+                ComponentError::LockError("Failed to lock inner component for before_mount".to_string())
+            })?;
+
+            inner_component.any_before_mount()
+        };
+
+        if let Err(e) = before_mount_result {
+            return Err(e);
+        }
+
         // Set mounting phase
         self.phase = LifecyclePhase::Mounting;
         self.context.set_lifecycle_phase(LifecyclePhase::Mounting);
 
-        // Execute mount
+        // Execute enhanced mount with context
         let result = {
             let component_instance = self.component.lock().map_err(|_| {
                 ComponentError::LockError("Failed to lock component for mount".to_string())
             })?;
 
-            // Get the inner component and call mount
+            // Get the inner component and call enhanced mount
             let mut inner_component = component_instance.instance.lock().map_err(|_| {
                 ComponentError::LockError("Failed to lock inner component for mount".to_string())
             })?;
@@ -94,7 +118,10 @@ impl LifecycleManager {
             self.context
                 .execute_lifecycle_hooks(LifecyclePhase::Mounting, &mut **inner_component);
 
-            // Call the component's mount method through AnyComponent
+            // Call the enhanced mount method with context
+            inner_component.any_on_mount(&mount_context)?;
+
+            // Call the basic mount method through AnyComponent for backward compatibility
             inner_component.any_mount()
         };
 
@@ -102,6 +129,24 @@ impl LifecycleManager {
         if result.is_ok() {
             self.phase = LifecyclePhase::Mounted;
             self.context.set_lifecycle_phase(LifecyclePhase::Mounted);
+
+            // Call after_mount hook
+            let after_mount_result = {
+                let component_instance = self.component.lock().map_err(|_| {
+                    ComponentError::LockError("Failed to lock component for after_mount".to_string())
+                })?;
+
+                let mut inner_component = component_instance.instance.lock().map_err(|_| {
+                    ComponentError::LockError("Failed to lock inner component for after_mount".to_string())
+                })?;
+
+                inner_component.any_after_mount()
+            };
+
+            if let Err(e) = after_mount_result {
+                // If after_mount fails, we still consider the component mounted but log the error
+                eprintln!("Warning: after_mount failed for component: {}", e);
+            }
         }
 
         if result.is_err() {
