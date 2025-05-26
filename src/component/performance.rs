@@ -559,7 +559,6 @@ macro_rules! lazy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::props::Props;
     use crate::component::ComponentBase;
 
     #[derive(Clone, Hash, PartialEq, Eq)]
@@ -573,8 +572,7 @@ mod tests {
         id: u64,
         version: u32,
     }
-
-    impl Props for TestProps {}
+    // Using the blanket implementation of Props instead of implementing it manually
 
     struct TestComponent {
         base: ComponentBase,
@@ -626,7 +624,7 @@ mod tests {
 
     #[test]
     fn test_memo_cache() {
-        let cache = MemoCache::new(2, Duration::from_secs(1));
+        let cache: MemoCache<String, Vec<Node>> = MemoCache::new(2, Duration::from_secs(1));
 
         cache.set("key1".to_string(), vec![]);
         cache.set("key2".to_string(), vec![]);

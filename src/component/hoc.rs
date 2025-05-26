@@ -349,15 +349,13 @@ macro_rules! hoc_chain {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::props::Props;
     use crate::component::{ComponentBase, Context};
 
     #[derive(Clone, Debug)]
     struct TestProps {
         name: String,
     }
-
-    impl Props for TestProps {}
+    // Using the blanket implementation of Props instead of implementing it manually
 
     struct TestComponent {
         base: ComponentBase,

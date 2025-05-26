@@ -414,7 +414,6 @@ macro_rules! slotted_props {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::props::Props;
     use crate::component::ComponentBase;
 
     struct TestComponent {
@@ -423,7 +422,7 @@ mod tests {
 
     #[derive(Clone)]
     struct TestProps;
-    impl Props for TestProps {}
+    // Using the blanket implementation of Props instead of implementing it manually
 
     impl Component for TestComponent {
         type Props = TestProps;

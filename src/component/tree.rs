@@ -608,6 +608,7 @@ mod tests {
     // Simple test component
     struct TestComponent {
         id: ComponentId,
+        #[allow(dead_code)]
         context: Context,
         name: String,
     }
