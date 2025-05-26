@@ -2,7 +2,7 @@
 
 use std::sync::{Arc, Mutex};
 
-use crate::component::{ComponentError, ComponentInstance, Context, LifecyclePhase};
+use crate::component::{ComponentError, ComponentInstance, Context, LifecyclePhase, UnmountContext, UnmountReason};
 
 /// Manages the lifecycle of components
 pub struct LifecycleManager {
@@ -287,6 +287,26 @@ impl LifecycleManager {
         self.phase = LifecyclePhase::Unmounting;
         self.context.set_lifecycle_phase(LifecyclePhase::Unmounting);
 
+        // Create unmount context
+        let unmount_context = UnmountContext::new(
+            self.component
+                .lock()
+                .map_err(|_| {
+                    ComponentError::LockError(
+                        "Failed to lock component for unmount context".to_string(),
+                    )
+                })?
+                .instance
+                .lock()
+                .map_err(|_| {
+                    ComponentError::LockError(
+                        "Failed to lock inner component for unmount context".to_string(),
+                    )
+                })?
+                .component_id(),
+            UnmountReason::Removed,
+        );
+
         let unmount_result = if let Ok(component_instance) = self.component.lock() {
             let mut inner_component = component_instance.instance.lock().map_err(|_| {
                 ComponentError::LockError("Failed to lock inner component for unmount".to_string())
@@ -296,7 +316,10 @@ impl LifecycleManager {
             self.context
                 .execute_lifecycle_hooks(LifecyclePhase::Unmounting, &mut **inner_component);
 
-            // Call the component's unmount method
+            // Call the enhanced unmount method with context
+            inner_component.any_on_unmount(&unmount_context)?;
+
+            // Call the basic unmount method for backward compatibility
             inner_component.any_unmount()
         } else {
             Err(ComponentError::LockError(
@@ -308,6 +331,26 @@ impl LifecycleManager {
             // Update phase after successful unmount
             self.phase = LifecyclePhase::Unmounted;
             self.context.set_lifecycle_phase(LifecyclePhase::Unmounted);
+
+            // Call after_unmount hook
+            let after_unmount_result = if let Ok(component_instance) = self.component.lock() {
+                let mut inner_component = component_instance.instance.lock().map_err(|_| {
+                    ComponentError::LockError(
+                        "Failed to lock inner component for after_unmount".to_string(),
+                    )
+                })?;
+
+                inner_component.any_after_unmount()
+            } else {
+                Err(ComponentError::LockError(
+                    "Failed to lock component instance for after_unmount".to_string(),
+                ))
+            };
+
+            if let Err(e) = after_unmount_result {
+                // If after_unmount fails, we still consider the component unmounted but log the error
+                eprintln!("Warning: after_unmount failed for component: {e}");
+            }
         }
 
         unmount_result
