@@ -6,7 +6,7 @@
 use std::collections::HashMap;
 
 use crate::component::{
-    Component, ComponentError, ComponentId, Context, Node, Props,
+    Component, ComponentError, ComponentId, Context, Node,
 };
 
 /// Trait for components that can render other components (render props pattern)

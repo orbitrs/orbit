@@ -197,11 +197,6 @@ where
         self.lifecycle_phase
     }
 
-    fn set_lifecycle_phase(&mut self, phase: LifecyclePhase) {
-        self.lifecycle_phase = phase;
-        self.wrapped_component.set_lifecycle_phase(phase);
-    }
-
     fn mount(&mut self) -> Result<(), ComponentError> {
         self.wrapped_component.mount()
     }
@@ -216,10 +211,8 @@ where
 
     fn state_changed(&mut self, state_key: &str) -> Result<(), ComponentError> {
         self.wrapped_component.state_changed(state_key)
-    }
-
-    fn request_update(&mut self) -> Result<(), ComponentError> {
-        self.wrapped_component.request_update()
+    }    fn request_update(&mut self) -> Result<(), ComponentError> {
+        <T as Component>::request_update(&mut self.wrapped_component)
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -241,9 +234,9 @@ impl<T: Component> HigherOrderComponent<T> for WithLogging {
 
     fn transform_props(hoc_props: &Self::HOCProps) -> T::Props {
         hoc_props.clone()
-    }fn on_wrapped_mount(
+    }    fn on_wrapped_mount(
         component: &mut T,
-        context: &MountContext,
+        _context: &MountContext,
         _hoc_props: &Self::HOCProps,
     ) -> Result<(), ComponentError> {
         println!("🔄 Component {} mounted", Component::component_id(component));
@@ -258,11 +251,9 @@ impl<T: Component> HigherOrderComponent<T> for WithLogging {
         println!("🔄 Component {} updated with {} changes", 
                 Component::component_id(component), changes.changes.len());
         Ok(())
-    }
-
-    fn on_wrapped_unmount(
+    }    fn on_wrapped_unmount(
         component: &mut T,
-        context: &UnmountContext,
+        _context: &UnmountContext,
         _hoc_props: &Self::HOCProps,
     ) -> Result<(), ComponentError> {
         println!("🔄 Component {} unmounted", Component::component_id(component));
@@ -278,11 +269,9 @@ impl<T: Component> HigherOrderComponent<T> for WithPerformanceMonitoring {
 
     fn transform_props(hoc_props: &Self::HOCProps) -> T::Props {
         hoc_props.clone()
-    }
-
-    fn on_wrapped_mount(
+    }    fn on_wrapped_mount(
         component: &mut T,
-        context: &MountContext,
+        _context: &MountContext,
         _hoc_props: &Self::HOCProps,
     ) -> Result<(), ComponentError> {
         let start = std::time::Instant::now();
