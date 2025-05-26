@@ -16,6 +16,9 @@ mod update_scheduler;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod integration_tests;
+
 // Re-export component module contents
 pub use context::{callback, Callback, ContextProvider};
 pub use enhanced_context::Context as EnhancedContext;

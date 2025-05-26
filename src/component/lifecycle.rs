@@ -1,8 +1,14 @@
 //! Component lifecycle management for Orbit UI framework
 
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::component::{ComponentError, ComponentInstance, Context, LifecyclePhase, UnmountContext, UnmountReason};
+use crate::component::{
+    ComponentError, ComponentInstance, Context, LifecyclePhase, 
+    UnmountContext, UnmountReason, state_tracking::{
+        StateTracker, StateValue
+    }
+};
 
 /// Manages the lifecycle of components
 pub struct LifecycleManager {
@@ -14,15 +20,24 @@ pub struct LifecycleManager {
 
     /// Context for the component
     context: Context,
+    
+    /// State change tracker
+    state_tracker: StateTracker,
+    
+    /// Last time this component was updated
+    last_updated: std::time::Instant,
 }
 
 impl LifecycleManager {
     /// Create a new lifecycle manager for a component
     pub fn new(component: ComponentInstance, context: Context) -> Self {
+        let component_id = component.id();
         Self {
             phase: LifecyclePhase::Created,
             component: Arc::new(Mutex::new(component)),
             context: context.clone(),
+            state_tracker: StateTracker::new_default(component_id),
+            last_updated: std::time::Instant::now(),
         }
     }
 
@@ -365,9 +380,97 @@ impl LifecycleManager {
             ));
         }
         
-        // In a real implementation, this would check dirty state and update as needed
-        // For now, this is a placeholder that does nothing
+        // Extract current component state into a format our tracker can use
+        let current_state = self.extract_component_state()?;
+        
+        // Update the state tracker and get changes (if any)
+        if let Some(state_changes) = self.state_tracker.update_state(current_state)? {
+            // We have state changes that need processing
+            if !state_changes.is_empty() {
+                // Log state changes for debugging
+                eprintln!(
+                    "Component {} has {} state changes to process", 
+                    self.state_tracker.component_id(), 
+                    state_changes.len()
+                );
+                
+                // Set to updating phase
+                self.phase = LifecyclePhase::BeforeUpdate;
+                self.context.set_lifecycle_phase(LifecyclePhase::BeforeUpdate);
+                
+                // Get access to component instance
+                let component_instance = self.component.lock().map_err(|_| {
+                    ComponentError::LockError("Failed to lock component for state update".to_string())
+                })?;
+                
+                let mut inner_component = component_instance.instance.lock().map_err(|_| {
+                    ComponentError::LockError(
+                        "Failed to lock inner component for state update".to_string(),
+                    )
+                })?;
+                
+                // Execute before update hooks
+                self.context.execute_lifecycle_hooks(LifecyclePhase::BeforeUpdate, &mut **inner_component);
+                
+                // Call component's on_update method with all state changes
+                inner_component.any_on_update(&state_changes)?;
+                
+                // Set updating phase
+                self.phase = LifecyclePhase::Updating;
+                self.context.set_lifecycle_phase(LifecyclePhase::Updating);
+                
+                // Schedule a re-render through the update scheduler
+                self.context.schedule_update(self.state_tracker.component_id());
+                
+                // Set back to mounted phase
+                self.phase = LifecyclePhase::Mounted;
+                self.context.set_lifecycle_phase(LifecyclePhase::Mounted);
+                
+                // Update timestamp 
+                self.last_updated = std::time::Instant::now();
+            }
+        }
+        
         Ok(())
+    }
+    
+    /// Extract the current component state as StateValue map
+    fn extract_component_state(&self) -> Result<HashMap<String, StateValue>, ComponentError> {
+        let mut state_fields = HashMap::new();
+        
+        // Attempt to lock component instance
+        let component_instance = self.component.lock().map_err(|_| {
+            ComponentError::LockError("Failed to lock component for state extraction".to_string())
+        })?;
+        
+        let component = component_instance.instance.lock().map_err(|_| {
+            ComponentError::LockError("Failed to lock inner component for state extraction".to_string())
+        })?;
+        
+        // In a production implementation, we would use reflection or introspection
+        // to extract all state fields from the component. Since Rust doesn't have 
+        // built-in reflection, the component would need to implement a state extraction trait.
+        
+        // For now, we'll just extract some common state patterns:
+        
+        // 1. Try to extract a "state" field if the component has one
+        if let Some(state_container) = component.as_any().downcast_ref::<HashMap<String, StateValue>>() {
+            // If component has a state HashMap directly, use it
+            for (key, value) in state_container {
+                state_fields.insert(key.clone(), value.clone());
+            }
+        }
+        
+        // 2. Look for a "props" field for props tracking
+        let props_type_id = component_instance.props.as_any().type_id();
+        // Add a field for props type ID to track props changes
+        state_fields.insert("__props_type_id".to_string(), StateValue::String(format!("{:?}", props_type_id)));
+        
+        // 3. Add component phase as a tracked state
+        state_fields.insert("__lifecycle_phase".to_string(), 
+            StateValue::String(format!("{:?}", component.lifecycle_phase())));
+        
+        Ok(state_fields)
     }
     
     /// Render the component
