@@ -228,10 +228,8 @@ mod enhanced_tests {
         let id2 = ComponentId::new();
 
         assert_ne!(id1, id2);
-        assert!(id1.id() < id2.id());
-
-        // Test display formatting
-        assert!(format!("{}", id1).starts_with("Component#"));
+        assert!(id1.id() < id2.id());        // Test display formatting
+        assert!(format!("{id1}").starts_with("Component#"));
     }
 
     #[test]

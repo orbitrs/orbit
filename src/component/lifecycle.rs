@@ -108,9 +108,7 @@ impl LifecycleManager {
             inner_component.any_before_mount()
         };
 
-        if let Err(e) = before_mount_result {
-            return Err(e);
-        }
+        before_mount_result?;
 
         // Set mounting phase
         self.phase = LifecyclePhase::Mounting;
@@ -162,7 +160,7 @@ impl LifecycleManager {
 
             if let Err(e) = after_mount_result {
                 // If after_mount fails, we still consider the component mounted but log the error
-                eprintln!("Warning: after_mount failed for component: {}", e);
+                eprintln!("Warning: after_mount failed for component: {e}");
             }
         }
 

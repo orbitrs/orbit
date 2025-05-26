@@ -315,16 +315,14 @@ impl StateTracker {
     }
     /// Force flush of current batch
     pub fn flush_batch(&mut self) -> StateChanges {
-        let changes = StateChanges {
+        StateChanges {
             changes: std::mem::take(&mut self.change_batch),
             batch_timestamp: Instant::now(),
             immediate: false,
-        };
+        }
 
         // Note: Don't clear dirty flags here - they should be cleared explicitly
         // via mark_field_clean to allow fine-grained control
-
-        changes
     }
 
     /// Check if batch should be flushed based on configuration
@@ -456,9 +454,10 @@ mod tests {
     #[test]
     fn test_state_tracker_dirty_fields() {
         let component_id = ComponentId::new();
-        let mut config = StateTrackingConfig::default();
-        config.max_batch_size = 1; // Force immediate flush for testing
-        let mut tracker = StateTracker::new(component_id, config);
+        let mut tracker = StateTracker::new(component_id, StateTrackingConfig {
+            max_batch_size: 1, // Force immediate flush for testing
+            ..Default::default()
+        });
 
         let mut fields = HashMap::new();
         fields.insert("count".to_string(), StateValue::Integer(1));
@@ -474,11 +473,11 @@ mod tests {
     #[test]
     fn test_batch_flushing() {
         let component_id = ComponentId::new();
-        let mut config = StateTrackingConfig::default();
-        config.max_batch_size = 2; // Small batch size for testing
-        config.snapshot_throttle = Duration::from_nanos(1); // Very small throttle for testing
-
-        let mut tracker = StateTracker::new(component_id, config);
+        let mut tracker = StateTracker::new(component_id, StateTrackingConfig {
+            max_batch_size: 2, // Small batch size for testing
+            snapshot_throttle: Duration::from_nanos(1), // Very small throttle for testing
+            ..Default::default()
+        });
 
         // Add first change
         let mut fields1 = HashMap::new();
