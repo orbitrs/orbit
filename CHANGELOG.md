@@ -5,7 +5,7 @@ All notable changes to the Orbit UI Framework will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.8] - 2023-05-21
+## [0.1.8] - 2025-05-26
 
 ### Added
 - Support for specialized ARM64 builds with optional reqwest dependency
@@ -13,11 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Cross-compilation issues for Linux ARM64 targets
+- Compiler warnings in component implementation files
+- Clippy lints with appropriate allow attributes
 
 ### Performance
 - Improved rendering performance with Skia backend
 
-## [0.1.7] - 2023-04-18
+## [0.1.7] - 2025-04-18
 
 ### Added
 - Support for HTML5 parsing with html5ever
@@ -28,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Updated winit to version 0.29
 
-## [0.1.6] - 2023-03-05
+## [0.1.6] - 2025-03-05
 
 ### Added
 - Basic component model
