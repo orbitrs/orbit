@@ -9,7 +9,7 @@ use std::{
 };
 
 use crate::{
-    component::{update_scheduler::{UpdatePriority, UpdateScheduler}, AnyComponent, ComponentId, LifecyclePhase, Props},
+    component::{update_scheduler::{UpdatePriority, UpdateScheduler}, AnyComponent, ComponentId, LifecyclePhase},
     events::EventEmitter,
     state::{ReactiveScope, StateContainer},
 };
@@ -197,7 +197,7 @@ impl std::fmt::Debug for Context {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::component::{Component, ComponentError, ComponentId, LifecyclePhase};
+    use crate::component::{ComponentError, ComponentId, LifecyclePhase, Props};
     
     // Mock component for testing
     struct TestComponent {

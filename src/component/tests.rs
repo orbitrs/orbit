@@ -1,6 +1,6 @@
 //! Tests for component lifecycle management
 
-use crate::component::{Component, ComponentError, ComponentId, Context, LifecycleManager, Node, MountContext, UnmountContext, UnmountReason, ComponentBase, ComponentInstance, LifecyclePhase};
+use crate::component::{Component, ComponentError, ComponentId, Context, LifecycleManager, Node, MountContext, UnmountContext, UnmountReason, ComponentInstance};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -540,8 +540,10 @@ mod enhanced_tests {
     }    #[test]
     fn test_enhanced_lifecycle_with_contexts() {
         let context = Context::new();
-        let component_base = ComponentBase::new(context);
-        let component_instance = ComponentInstance::new(component_base, TestProps {
+        // Create a TestComponent with props
+        let test_props = TestProps { message: "Test".to_string() };
+        let test_component = TestComponent::create(test_props, context.clone());
+        let component_instance = ComponentInstance::new(test_component, TestProps {
             message: "Test".to_string(),
         });
         let mut lifecycle_manager = LifecycleManager::new(component_instance, Context::new());
