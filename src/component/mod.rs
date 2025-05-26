@@ -4,17 +4,21 @@
 //! including lifecycle management, state, props, and rendering.
 
 mod context;
+mod enhanced_context;
 mod error;
 mod lifecycle;
 mod node;
 pub mod props;
 mod state_tracking;
+mod tree;
+mod update_scheduler;
 
 #[cfg(test)]
 mod tests;
 
 // Re-export component module contents
 pub use context::{callback, Callback, ContextProvider};
+pub use enhanced_context::Context as EnhancedContext;
 pub use error::ComponentError;
 pub use lifecycle::LifecycleManager;
 // Import Node from our own node module instead of component_single
@@ -23,6 +27,8 @@ pub use state_tracking::{
     ChangePriority, StateChange, StateChanges, StateSnapshot, StateTracker, StateTrackingConfig,
     StateValue,
 };
+pub use tree::{ComponentTree, TreeError, TreeResult};
+pub use update_scheduler::{UpdatePriority, UpdateScheduler as ModuleUpdateScheduler};
 
 use std::{
     any::TypeId,
@@ -71,7 +77,7 @@ impl std::fmt::Display for ComponentId {
 }
 
 /// Lifecycle phase of a component
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum LifecyclePhase {
     /// Component is created but not yet mounted
     Created,
@@ -270,6 +276,16 @@ impl ComponentInstance {
             type_id: TypeId::of::<C>(),
         }
     }
+    
+    /// Get the ID of the component
+    pub fn id(&self) -> ComponentId {
+        if let Ok(component) = self.instance.lock() {
+            component.component_id()
+        } else {
+            // Return a new ID if we can't get the component - should rarely happen
+            ComponentId::new()
+        }
+    }
 
     /// Update the component instance with new props
     pub fn update<P: Props>(&mut self, props: P) -> Result<(), ComponentError> {
@@ -414,6 +430,16 @@ impl UnmountContext {
     pub fn with_force_cleanup(mut self, force: bool) -> Self {
         self.force_cleanup = force;
         self
+    }
+}
+
+impl Clone for ComponentInstance {
+    fn clone(&self) -> Self {
+        Self {
+            instance: self.instance.clone(),
+            props: self.props.box_clone(),
+            type_id: self.type_id,
+        }
     }
 }
 

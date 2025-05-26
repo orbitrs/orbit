@@ -355,6 +355,21 @@ impl LifecycleManager {
 
         unmount_result
     }
+    
+    /// Handle updates to the component
+    pub fn handle_updates(&mut self) -> Result<(), ComponentError> {
+        if self.phase != LifecyclePhase::Mounted {
+            return Err(ComponentError::InvalidLifecycleTransition(
+                self.phase,
+                "handle_updates".to_string(),
+            ));
+        }
+        
+        // In a real implementation, this would check dirty state and update as needed
+        // For now, this is a placeholder that does nothing
+        Ok(())
+    }
+    
     /// Render the component
     pub fn render(&self) -> Result<Vec<crate::component::Node>, ComponentError> {
         if self.phase != LifecyclePhase::Mounted {

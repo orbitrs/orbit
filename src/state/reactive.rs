@@ -32,6 +32,7 @@ impl std::error::Error for SignalError {}
 ///
 /// This is a simplified implementation focused on basic functionality.
 /// Advanced dependency tracking will be implemented in future versions.
+#[derive(Debug)]
 pub struct ReactiveScope {
     // Reserved for future dependency tracking functionality
 }
