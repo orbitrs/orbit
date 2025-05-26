@@ -8,9 +8,7 @@ use std::hash::Hash;
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
-use crate::component::{
-    Component, ComponentError, ComponentId, Context, Node, StateChanges,
-};
+use crate::component::{Component, ComponentError, ComponentId, Context, Node, StateChanges};
 
 /// Trait for memoizable components
 pub trait Memoizable {
@@ -54,7 +52,7 @@ where
 
     pub fn get(&self, key: &K) -> Option<V> {
         let mut cache = self.cache.write().ok()?;
-        
+
         if let Some(entry) = cache.get_mut(key) {
             // Check if entry is still valid
             if entry.created_at.elapsed() < self.ttl {
@@ -114,6 +112,7 @@ where
 {
     component: T,
     last_memo_key: Option<T::MemoKey>,
+    #[allow(dead_code)]
     cached_render: Option<Vec<Node>>,
     cache: Arc<MemoCache<T::MemoKey, Vec<Node>>>,
 }
@@ -148,7 +147,8 @@ where
     T::Props: Send + Sync + 'static,
     T::MemoKey: Send + Sync + 'static,
 {
-    type Props = T::Props;    fn component_id(&self) -> ComponentId {
+    type Props = T::Props;
+    fn component_id(&self) -> ComponentId {
         Component::component_id(&self.component)
     }
 
@@ -219,8 +219,11 @@ impl PerformanceMonitor {
 
     pub fn record_render_time(&self, component_id: ComponentId, duration: Duration) {
         if let Ok(mut times) = self.render_times.write() {
-            times.entry(component_id).or_insert_with(Vec::new).push(duration);
-            
+            times
+                .entry(component_id)
+                .or_insert_with(Vec::new)
+                .push(duration);
+
             // Keep only last 100 measurements
             if let Some(component_times) = times.get_mut(&component_id) {
                 if component_times.len() > 100 {
@@ -232,8 +235,11 @@ impl PerformanceMonitor {
 
     pub fn record_update_time(&self, component_id: ComponentId, duration: Duration) {
         if let Ok(mut times) = self.update_times.write() {
-            times.entry(component_id).or_insert_with(Vec::new).push(duration);
-            
+            times
+                .entry(component_id)
+                .or_insert_with(Vec::new)
+                .push(duration);
+
             // Keep only last 100 measurements
             if let Some(component_times) = times.get_mut(&component_id) {
                 if component_times.len() > 100 {
@@ -269,7 +275,7 @@ impl PerformanceMonitor {
                     let average = total / component_times.len() as u32;
                     let min = *component_times.iter().min().unwrap();
                     let max = *component_times.iter().max().unwrap();
-                    
+
                     return RenderStatistics {
                         count: component_times.len(),
                         total,
@@ -434,7 +440,8 @@ where
     T: Component + Send + Sync + 'static,
     T::Props: Send + Sync + 'static,
 {
-    type Props = T::Props;    fn component_id(&self) -> ComponentId {
+    type Props = T::Props;
+    fn component_id(&self) -> ComponentId {
         if let Some(ref component) = self.component {
             Component::component_id(component)
         } else {
@@ -449,7 +456,10 @@ where
     }
 
     fn mount(&mut self) -> Result<(), ComponentError> {
-        if matches!(self.load_trigger, LoadTrigger::OnMount | LoadTrigger::Immediate) {
+        if matches!(
+            self.load_trigger,
+            LoadTrigger::OnMount | LoadTrigger::Immediate
+        ) {
             self.ensure_loaded()?;
             if let Some(ref mut component) = self.component {
                 component.mount()?;
@@ -498,7 +508,7 @@ impl PerformanceRegistry {
             memo_cache: Arc::new(MemoCache::new(1000, Duration::from_secs(600))),
             update_batcher: Arc::new(UpdateBatcher::new(
                 Duration::from_millis(16), // ~60fps
-                10, // max 10 updates per batch
+                10,                        // max 10 updates per batch
             )),
         }
     }
@@ -523,7 +533,7 @@ impl Default for PerformanceRegistry {
 }
 
 /// Macros for easy performance optimization
-
+///
 /// Create a memoized component
 #[macro_export]
 macro_rules! memo {
@@ -549,6 +559,7 @@ macro_rules! lazy {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::component::props::Props;
     use crate::component::ComponentBase;
 
     #[derive(Clone, Hash, PartialEq, Eq)]
@@ -616,7 +627,7 @@ mod tests {
     #[test]
     fn test_memo_cache() {
         let cache = MemoCache::new(2, Duration::from_secs(1));
-        
+
         cache.set("key1".to_string(), vec![]);
         cache.set("key2".to_string(), vec![]);
         assert_eq!(cache.size(), 2);
@@ -642,7 +653,7 @@ mod tests {
     fn test_update_batcher() {
         let batcher = UpdateBatcher::new(Duration::from_millis(100), 5);
         let component_id = ComponentId::new();
-        
+
         let changes = StateChanges {
             changes: vec![],
             batch_timestamp: std::time::Instant::now(),

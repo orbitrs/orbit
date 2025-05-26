@@ -5,9 +5,7 @@
 
 use std::collections::HashMap;
 
-use crate::component::{
-    Component, ComponentError, ComponentId, Context, Node,
-};
+use crate::component::{Component, ComponentError, ComponentId, Context, Node};
 
 /// Trait for components that can render other components (render props pattern)
 pub trait RenderProp<T> {
@@ -33,6 +31,7 @@ where
     component_id: ComponentId,
     data: T,
     renderer: R,
+    #[allow(dead_code)]
     context: Context,
 }
 
@@ -146,7 +145,8 @@ impl SlottedProps {
 
     pub fn get_slot(&self, name: &str) -> Option<&Slot> {
         self.slots.get(name)
-    }    pub fn get_slot_nodes(&self, name: &str) -> Vec<Node> {
+    }
+    pub fn get_slot_nodes(&self, name: &str) -> Vec<Node> {
         self.slots
             .get(name)
             .map(|slot| slot.nodes.clone())
@@ -171,8 +171,7 @@ pub trait Slotted {
             if let Some(slot) = props.get_slot(&slot_name) {
                 if slot.required && slot.nodes.is_empty() {
                     return Err(ComponentError::InvalidProps(format!(
-                        "Required slot '{}' is empty",
-                        slot_name
+                        "Required slot '{slot_name}' is empty"
                     )));
                 }
             }
@@ -188,6 +187,7 @@ pub trait Slotted {
 pub struct SlottedComponent {
     component_id: ComponentId,
     supported_slots: Vec<String>,
+    #[allow(dead_code)]
     context: Context,
 }
 
@@ -266,6 +266,7 @@ pub trait CompoundComponent {
 pub struct FlexibleCompoundComponent {
     component_id: ComponentId,
     sub_components: Vec<Box<dyn Component<Props = FlexibleCompoundProps>>>,
+    #[allow(dead_code)]
     context: Context,
 }
 
@@ -296,11 +297,12 @@ impl Component for FlexibleCompoundComponent {
 
     fn component_id(&self) -> ComponentId {
         self.component_id
-    }    fn create(_props: Self::Props, context: Context) -> Self {
+    }
+    fn create(_props: Self::Props, context: Context) -> Self {
         // Create compound component with sub-components based on props
-        let compound = Self::new(context);
+
         // Add logic here to create sub-components from props
-        compound
+        Self::new(context)
     }
 
     fn update(&mut self, props: Self::Props) -> Result<(), ComponentError> {
@@ -347,7 +349,7 @@ impl CompoundComponent for FlexibleCompoundComponent {
 }
 
 /// Composition utilities and builder patterns
-
+///
 /// Builder for creating complex component compositions
 pub struct CompositionBuilder {
     components: Vec<Box<dyn Component<Props = FlexibleCompoundProps>>>,
@@ -380,7 +382,7 @@ impl CompositionBuilder {
 }
 
 /// Macros for easier composition
-
+///
 /// Create a slot with nodes
 #[macro_export]
 macro_rules! slot {
@@ -412,6 +414,7 @@ macro_rules! slotted_props {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::component::props::Props;
     use crate::component::ComponentBase;
 
     struct TestComponent {
@@ -464,10 +467,7 @@ mod tests {
 
     #[test]
     fn test_slotted_props() {
-        let props = slotted_props!(
-            slot!("header"),
-            slot!("content", required)
-        );
+        let props = slotted_props!(slot!("header"), slot!("content", required));
 
         assert!(props.get_slot("header").is_some());
         assert!(props.get_slot("content").is_some());

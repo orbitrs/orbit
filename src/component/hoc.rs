@@ -13,11 +13,15 @@ use crate::component::{
 /// Trait for defining higher-order component behavior
 pub trait HigherOrderComponent<T: Component> {
     /// The props type for the HOC itself (should match T::Props)
-    type HOCProps: Props + Clone;    /// Transform HOC props into wrapped component props
+    type HOCProps: Props + Clone;
+    /// Transform HOC props into wrapped component props
     fn transform_props(hoc_props: &Self::HOCProps) -> T::Props;
 
     /// Optional: modify the wrapped component after creation
-    fn enhance_component(component: &mut T, hoc_props: &Self::HOCProps) -> Result<(), ComponentError> {
+    fn enhance_component(
+        component: &mut T,
+        hoc_props: &Self::HOCProps,
+    ) -> Result<(), ComponentError> {
         // Default implementation does nothing
         let _ = (component, hoc_props);
         Ok(())
@@ -76,7 +80,8 @@ impl<H, T> HOCWrapper<H, T>
 where
     H: HigherOrderComponent<T>,
     T: Component,
-{    /// Create a new HOC wrapper
+{
+    /// Create a new HOC wrapper
     pub fn new(hoc_props: H::HOCProps, context: Context) -> Result<Self, ComponentError>
     where
         T: Component,
@@ -155,7 +160,8 @@ where
         H::on_wrapped_update(&mut self.wrapped_component, changes, &self.hoc_props)?;
         // Then call wrapped component's update
         self.wrapped_component.on_update(changes)
-    }    fn should_update(&self, new_props: &Self::Props) -> bool {
+    }
+    fn should_update(&self, new_props: &Self::Props) -> bool {
         // Transform props and check if wrapped component should update
         let wrapped_props = H::transform_props(new_props);
         self.wrapped_component.should_update(&wrapped_props)
@@ -193,7 +199,8 @@ where
 
     fn render(&self) -> Result<Vec<Node>, ComponentError> {
         self.wrapped_component.render()
-    }    fn lifecycle_phase(&self) -> LifecyclePhase {
+    }
+    fn lifecycle_phase(&self) -> LifecyclePhase {
         self.lifecycle_phase
     }
 
@@ -211,7 +218,8 @@ where
 
     fn state_changed(&mut self, state_key: &str) -> Result<(), ComponentError> {
         self.wrapped_component.state_changed(state_key)
-    }    fn request_update(&mut self) -> Result<(), ComponentError> {
+    }
+    fn request_update(&mut self) -> Result<(), ComponentError> {
         <T as Component>::request_update(&mut self.wrapped_component)
     }
 
@@ -225,7 +233,7 @@ where
 }
 
 /// Common HOC patterns
-
+///
 /// HOC that adds logging to component lifecycle events
 pub struct WithLogging;
 
@@ -234,12 +242,16 @@ impl<T: Component> HigherOrderComponent<T> for WithLogging {
 
     fn transform_props(hoc_props: &Self::HOCProps) -> T::Props {
         hoc_props.clone()
-    }    fn on_wrapped_mount(
+    }
+    fn on_wrapped_mount(
         component: &mut T,
         _context: &MountContext,
         _hoc_props: &Self::HOCProps,
     ) -> Result<(), ComponentError> {
-        println!("🔄 Component {} mounted", Component::component_id(component));
+        println!(
+            "🔄 Component {} mounted",
+            Component::component_id(component)
+        );
         Ok(())
     }
 
@@ -248,15 +260,22 @@ impl<T: Component> HigherOrderComponent<T> for WithLogging {
         changes: &StateChanges,
         _hoc_props: &Self::HOCProps,
     ) -> Result<(), ComponentError> {
-        println!("🔄 Component {} updated with {} changes", 
-                Component::component_id(component), changes.changes.len());
+        println!(
+            "🔄 Component {} updated with {} changes",
+            Component::component_id(component),
+            changes.changes.len()
+        );
         Ok(())
-    }    fn on_wrapped_unmount(
+    }
+    fn on_wrapped_unmount(
         component: &mut T,
         _context: &UnmountContext,
         _hoc_props: &Self::HOCProps,
     ) -> Result<(), ComponentError> {
-        println!("🔄 Component {} unmounted", Component::component_id(component));
+        println!(
+            "🔄 Component {} unmounted",
+            Component::component_id(component)
+        );
         Ok(())
     }
 }
@@ -269,7 +288,8 @@ impl<T: Component> HigherOrderComponent<T> for WithPerformanceMonitoring {
 
     fn transform_props(hoc_props: &Self::HOCProps) -> T::Props {
         hoc_props.clone()
-    }    fn on_wrapped_mount(
+    }
+    fn on_wrapped_mount(
         component: &mut T,
         _context: &MountContext,
         _hoc_props: &Self::HOCProps,
@@ -277,7 +297,11 @@ impl<T: Component> HigherOrderComponent<T> for WithPerformanceMonitoring {
         let start = std::time::Instant::now();
         let result = component.mount();
         let duration = start.elapsed();
-        println!("⚡ Component {} mount took {:?}", Component::component_id(component), duration);
+        println!(
+            "⚡ Component {} mount took {:?}",
+            Component::component_id(component),
+            duration
+        );
         result
     }
 
@@ -289,7 +313,11 @@ impl<T: Component> HigherOrderComponent<T> for WithPerformanceMonitoring {
         let start = std::time::Instant::now();
         let result = component.on_update(changes);
         let duration = start.elapsed();
-        println!("⚡ Component {} update took {:?}", Component::component_id(component), duration);
+        println!(
+            "⚡ Component {} update took {:?}",
+            Component::component_id(component),
+            duration
+        );
         result
     }
 }
@@ -321,6 +349,7 @@ macro_rules! hoc_chain {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::component::props::Props;
     use crate::component::{ComponentBase, Context};
 
     #[derive(Clone, Debug)]
@@ -375,10 +404,10 @@ mod tests {
         };
 
         let mut logged_component = LoggedComponent::<TestComponent>::new(props, context).unwrap();
-        
+
         // Test that we can access the wrapped component
         assert_eq!(logged_component.wrapped_component().props.name, "test");
-        
+
         // Test lifecycle methods work
         assert!(logged_component.initialize().is_ok());
         assert!(logged_component.before_mount().is_ok());
@@ -391,8 +420,9 @@ mod tests {
             name: "test".to_string(),
         };
 
-        let mut monitored_component = MonitoredComponent::<TestComponent>::new(props, context).unwrap();
-        
+        let mut monitored_component =
+            MonitoredComponent::<TestComponent>::new(props, context).unwrap();
+
         // Test that monitoring doesn't break functionality
         assert!(monitored_component.initialize().is_ok());
     }

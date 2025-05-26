@@ -454,10 +454,13 @@ mod tests {
     #[test]
     fn test_state_tracker_dirty_fields() {
         let component_id = ComponentId::new();
-        let mut tracker = StateTracker::new(component_id, StateTrackingConfig {
-            max_batch_size: 1, // Force immediate flush for testing
-            ..Default::default()
-        });
+        let mut tracker = StateTracker::new(
+            component_id,
+            StateTrackingConfig {
+                max_batch_size: 1, // Force immediate flush for testing
+                ..Default::default()
+            },
+        );
 
         let mut fields = HashMap::new();
         fields.insert("count".to_string(), StateValue::Integer(1));
@@ -473,11 +476,14 @@ mod tests {
     #[test]
     fn test_batch_flushing() {
         let component_id = ComponentId::new();
-        let mut tracker = StateTracker::new(component_id, StateTrackingConfig {
-            max_batch_size: 2, // Small batch size for testing
-            snapshot_throttle: Duration::from_nanos(1), // Very small throttle for testing
-            ..Default::default()
-        });
+        let mut tracker = StateTracker::new(
+            component_id,
+            StateTrackingConfig {
+                max_batch_size: 2,                          // Small batch size for testing
+                snapshot_throttle: Duration::from_nanos(1), // Very small throttle for testing
+                ..Default::default()
+            },
+        );
 
         // Add first change
         let mut fields1 = HashMap::new();

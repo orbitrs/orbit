@@ -3,11 +3,14 @@
 //! This module contains all the types and traits related to the component model,
 //! including lifecycle management, state, props, and rendering.
 
+mod composition;
 mod context;
 mod enhanced_context;
 mod error;
+mod hoc;
 mod lifecycle;
 mod node;
+mod performance;
 pub mod props;
 mod state_tracking;
 mod tree;
@@ -17,12 +20,25 @@ mod update_scheduler;
 mod tests;
 
 // Re-export component module contents
+pub use composition::{
+    CompositionBuilder, CompoundComponent, FlexibleCompoundComponent, FlexibleCompoundProps,
+    RenderProp, RenderPropComponent, RenderPropProps, Slot, Slotted, SlottedComponent,
+    SlottedProps,
+};
 pub use context::{callback, Callback, ContextProvider};
 pub use enhanced_context::Context as EnhancedContext;
 pub use error::ComponentError;
+pub use hoc::{
+    HOCWrapper, HigherOrderComponent, LoggedComponent, MonitoredComponent, WithLogging,
+    WithPerformanceMonitoring,
+};
 pub use lifecycle::LifecycleManager;
 // Import Node from our own node module instead of component_single
 pub use node::Node;
+pub use performance::{
+    LazyComponent, LoadTrigger, MemoCache, MemoComponent, Memoizable, PerformanceMonitor,
+    PerformanceRegistry, RenderStatistics, RenderTimer, UpdateBatcher,
+};
 pub use state_tracking::{
     ChangePriority, StateChange, StateChanges, StateSnapshot, StateTracker, StateTrackingConfig,
     StateValue,
@@ -267,6 +283,26 @@ pub struct ComponentInstance {
     pub type_id: TypeId,
 }
 
+impl std::fmt::Debug for ComponentInstance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ComponentInstance")
+            .field("type_id", &self.type_id)
+            .field("instance", &"<AnyComponent>")
+            .field("props", &"<Props>")
+            .finish()
+    }
+}
+
+impl Clone for ComponentInstance {
+    fn clone(&self) -> Self {
+        Self {
+            instance: Arc::clone(&self.instance),
+            props: self.props.box_clone(),
+            type_id: self.type_id,
+        }
+    }
+}
+
 impl ComponentInstance {
     /// Create a new component instance
     pub fn new<C: Component + 'static>(instance: C, props: C::Props) -> Self {
@@ -276,7 +312,7 @@ impl ComponentInstance {
             type_id: TypeId::of::<C>(),
         }
     }
-    
+
     /// Get the ID of the component
     pub fn id(&self) -> ComponentId {
         if let Ok(component) = self.instance.lock() {
@@ -433,15 +469,7 @@ impl UnmountContext {
     }
 }
 
-impl Clone for ComponentInstance {
-    fn clone(&self) -> Self {
-        Self {
-            instance: self.instance.clone(),
-            props: self.props.box_clone(),
-            type_id: self.type_id,
-        }
-    }
-}
+// Clone implementation already exists above
 
 /// Type-erased component trait for dynamic dispatch
 pub trait AnyComponent: Send + Sync + std::any::Any {

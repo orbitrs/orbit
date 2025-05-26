@@ -98,8 +98,7 @@ fn test_uninlined_format_strings() {
     if let Ok(output) = result {
         assert!(
             output.trim().is_empty(),
-            "Found uninlined format strings in orbit crate: {}",
-            output
+            "Found uninlined format strings in orbit crate: {output}"
         );
     }
 }
@@ -128,11 +127,9 @@ fn test_ci_feature_validity() {
     // Check each package-feature combination
     for (package, features) in valid_features.iter() {
         // Find all feature usages for this package
-        let feature_regex = format!(
-            "cargo [\\w\\+]+ -p {} [\\w\\s]+ --features ([\\w\\-]+)",
-            package
-        );
-        let feature_regex_alt = format!("cargo [\\w\\+]+ --features ([\\w\\-]+) -p {}", package);
+        let feature_regex =
+            format!("cargo [\\w\\+]+ -p {package} [\\w\\s]+ --features ([\\w\\-]+)");
+        let feature_regex_alt = format!("cargo [\\w\\+]+ --features ([\\w\\-]+) -p {package}");
 
         let feature_pattern = regex::Regex::new(&feature_regex).unwrap();
         let feature_pattern_alt = regex::Regex::new(&feature_regex_alt).unwrap();
@@ -143,9 +140,7 @@ fn test_ci_feature_validity() {
                 let feature_str = feature.as_str();
                 assert!(
                     features.contains(&feature_str),
-                    "CI uses invalid feature '{}' for package '{}'",
-                    feature_str,
-                    package
+                    "CI uses invalid feature '{feature_str}' for package '{package}'"
                 );
             }
         }
@@ -155,9 +150,7 @@ fn test_ci_feature_validity() {
                 let feature_str = feature.as_str();
                 assert!(
                     features.contains(&feature_str),
-                    "CI uses invalid feature '{}' for package '{}'",
-                    feature_str,
-                    package
+                    "CI uses invalid feature '{feature_str}' for package '{package}'"
                 );
             }
         }
@@ -177,7 +170,7 @@ fn test_beta_toolchain_available() {
             );
         }
         Err(e) => {
-            panic!("Failed to check for beta toolchain: {}", e);
+            panic!("Failed to check for beta toolchain: {e}");
         }
     }
 }

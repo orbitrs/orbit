@@ -8,6 +8,7 @@ use crate::events::delegation::EventDelegate;
 use crate::events::Event;
 
 /// A node in the UI tree with event delegation support
+#[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub struct Node {
     /// Component instance
@@ -22,7 +23,7 @@ pub struct Node {
     /// Unique identifier for this node
     id: usize,
 
-    /// Event delegate for this node
+    /// Event delegate for this node (not cloneable, so wrapped in Arc)
     event_delegate: Option<Arc<Mutex<EventDelegate>>>,
 }
 

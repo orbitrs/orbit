@@ -18,6 +18,9 @@ pub enum ComponentError {
     /// Invalid props type for the component
     InvalidPropsType,
 
+    /// Invalid props content or validation failed
+    InvalidProps(String),
+
     /// Error downcasting props or component
     DowncastError,
 
@@ -63,6 +66,7 @@ impl fmt::Display for ComponentError {
             Self::MountError(msg) => write!(f, "Error mounting component: {msg}"),
             Self::UnmountError(msg) => write!(f, "Error unmounting component: {msg}"),
             Self::ReactiveSystemError(msg) => write!(f, "Reactive system error: {msg}"),
+            Self::InvalidProps(msg) => write!(f, "Invalid props: {msg}"),
         }
     }
 }

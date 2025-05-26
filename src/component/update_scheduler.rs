@@ -114,13 +114,16 @@ impl UpdateScheduler {
         }
 
         // If not currently in an update cycle, trigger one
-        let updating = self.updating.lock().map_err(|_| "Failed to lock updating flag".to_string())?;
+        let updating = self
+            .updating
+            .lock()
+            .map_err(|_| "Failed to lock updating flag".to_string())?;
         if !*updating {
             // In a real implementation, this would schedule the update cycle
             // through the application's event loop or rendering system
             // But for now, we just note that we should update
             drop(updating); // Release lock
-            
+
             // Trigger process_updates here, or signal the main loop to do so
             // For now, this is a synchronous call in the testing environment
         }
@@ -175,7 +178,11 @@ impl UpdateScheduler {
             // Call the update function for this component
             if let Err(e) = update_component(update.component_id) {
                 // Log error but continue with other updates
-                eprintln!("Error updating component {}: {}", update.component_id.id(), e);
+                eprintln!(
+                    "Error updating component {}: {}",
+                    update.component_id.id(),
+                    e
+                );
             }
 
             count += 1;
@@ -240,26 +247,30 @@ mod tests {
     #[test]
     fn test_update_scheduler_basic() {
         let scheduler = UpdateScheduler::new();
-        
+
         // Schedule some updates
         let c1 = ComponentId::new();
         let c2 = ComponentId::new();
         let c3 = ComponentId::new();
-        
-        scheduler.schedule_update(c1, UpdatePriority::Normal).unwrap();
+
+        scheduler
+            .schedule_update(c1, UpdatePriority::Normal)
+            .unwrap();
         scheduler.schedule_update(c2, UpdatePriority::High).unwrap();
         scheduler.schedule_update(c3, UpdatePriority::Low).unwrap();
-        
+
         // Check we have the right number of pending updates
         assert_eq!(scheduler.pending_update_count().unwrap(), 3);
-        
+
         // Process updates and verify correct processing order
         let mut processed = Vec::new();
-        scheduler.process_updates(|id| {
-            processed.push(id);
-            Ok(())
-        }).unwrap();
-        
+        scheduler
+            .process_updates(|id| {
+                processed.push(id);
+                Ok(())
+            })
+            .unwrap();
+
         assert_eq!(processed.len(), 3);
         // High priority should be first
         assert_eq!(processed[0], c2);
@@ -267,59 +278,77 @@ mod tests {
         assert_eq!(processed[1], c1);
         // Then low priority
         assert_eq!(processed[2], c3);
-        
+
         // All updates should be processed
         assert_eq!(scheduler.pending_update_count().unwrap(), 0);
     }
-    
+
     #[test]
     fn test_duplicate_updates() {
         let scheduler = UpdateScheduler::new();
-        
+
         let c1 = ComponentId::new();
-        
+
         // Schedule the same update multiple times
-        scheduler.schedule_update(c1, UpdatePriority::Normal).unwrap();
-        scheduler.schedule_update(c1, UpdatePriority::Normal).unwrap();
-        scheduler.schedule_update(c1, UpdatePriority::Normal).unwrap();
-        
+        scheduler
+            .schedule_update(c1, UpdatePriority::Normal)
+            .unwrap();
+        scheduler
+            .schedule_update(c1, UpdatePriority::Normal)
+            .unwrap();
+        scheduler
+            .schedule_update(c1, UpdatePriority::Normal)
+            .unwrap();
+
         // Should only be one pending update
         assert_eq!(scheduler.pending_update_count().unwrap(), 1);
-        
+
         let mut processed = Vec::new();
-        scheduler.process_updates(|id| {
-            processed.push(id);
-            Ok(())
-        }).unwrap();
-        
+        scheduler
+            .process_updates(|id| {
+                processed.push(id);
+                Ok(())
+            })
+            .unwrap();
+
         // Should only process once
         assert_eq!(processed.len(), 1);
         assert_eq!(processed[0], c1);
     }
-    
+
     #[test]
     fn test_priority_ordering() {
         let scheduler = UpdateScheduler::new();
-        
+
         // Create various components with different priorities
         let c_normal = ComponentId::new();
         let c_low = ComponentId::new();
         let c_high = ComponentId::new();
         let c_critical = ComponentId::new();
-        
+
         // Schedule in a different order than priority
-        scheduler.schedule_update(c_normal, UpdatePriority::Normal).unwrap();
-        scheduler.schedule_update(c_low, UpdatePriority::Low).unwrap();
-        scheduler.schedule_update(c_high, UpdatePriority::High).unwrap();
-        scheduler.schedule_update(c_critical, UpdatePriority::Critical).unwrap();
-        
+        scheduler
+            .schedule_update(c_normal, UpdatePriority::Normal)
+            .unwrap();
+        scheduler
+            .schedule_update(c_low, UpdatePriority::Low)
+            .unwrap();
+        scheduler
+            .schedule_update(c_high, UpdatePriority::High)
+            .unwrap();
+        scheduler
+            .schedule_update(c_critical, UpdatePriority::Critical)
+            .unwrap();
+
         // Process and check priority ordering
         let mut processed = Vec::new();
-        scheduler.process_updates(|id| {
-            processed.push(id);
-            Ok(())
-        }).unwrap();
-        
+        scheduler
+            .process_updates(|id| {
+                processed.push(id);
+                Ok(())
+            })
+            .unwrap();
+
         assert_eq!(processed.len(), 4);
         // Critical should be first
         assert_eq!(processed[0], c_critical);
@@ -330,30 +359,36 @@ mod tests {
         // Low priority last
         assert_eq!(processed[3], c_low);
     }
-    
+
     #[test]
     fn test_clear_updates() {
         let scheduler = UpdateScheduler::new();
-        
+
         let c1 = ComponentId::new();
         let c2 = ComponentId::new();
-        
-        scheduler.schedule_update(c1, UpdatePriority::Normal).unwrap();
-        scheduler.schedule_update(c2, UpdatePriority::Normal).unwrap();
-        
+
+        scheduler
+            .schedule_update(c1, UpdatePriority::Normal)
+            .unwrap();
+        scheduler
+            .schedule_update(c2, UpdatePriority::Normal)
+            .unwrap();
+
         assert_eq!(scheduler.pending_update_count().unwrap(), 2);
-        
+
         // Clear all updates
         scheduler.clear_updates().unwrap();
-        
+
         assert_eq!(scheduler.pending_update_count().unwrap(), 0);
-        
+
         let mut processed = Vec::new();
-        scheduler.process_updates(|id| {
-            processed.push(id);
-            Ok(())
-        }).unwrap();
-        
+        scheduler
+            .process_updates(|id| {
+                processed.push(id);
+                Ok(())
+            })
+            .unwrap();
+
         // Nothing should be processed
         assert_eq!(processed.len(), 0);
     }

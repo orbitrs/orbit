@@ -1,6 +1,9 @@
 //! Tests for component lifecycle management
 
-use crate::component::{Component, ComponentError, ComponentId, Context, LifecycleManager, Node, MountContext, UnmountContext, UnmountReason, ComponentInstance};
+use crate::component::{
+    Component, ComponentError, ComponentId, ComponentInstance, Context, LifecycleManager,
+    MountContext, Node, UnmountContext, UnmountReason,
+};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
@@ -228,7 +231,7 @@ mod enhanced_tests {
         let id2 = ComponentId::new();
 
         assert_ne!(id1, id2);
-        assert!(id1.id() < id2.id());        // Test display formatting
+        assert!(id1.id() < id2.id()); // Test display formatting
         assert!(format!("{id1}").starts_with("Component#"));
     }
 
@@ -537,15 +540,21 @@ mod enhanced_tests {
         assert_eq!(layout_node.layout.rect.width(), 100.0);
         assert_eq!(layout_node.layout.rect.height(), 50.0);
         assert!(!layout_node.layout.is_dirty);
-    }    #[test]
+    }
+    #[test]
     fn test_enhanced_lifecycle_with_contexts() {
         let context = Context::new();
         // Create a TestComponent with props
-        let test_props = TestProps { message: "Test".to_string() };
-        let test_component = TestComponent::create(test_props, context.clone());
-        let component_instance = ComponentInstance::new(test_component, TestProps {
+        let test_props = TestProps {
             message: "Test".to_string(),
-        });
+        };
+        let test_component = TestComponent::create(test_props, context.clone());
+        let component_instance = ComponentInstance::new(
+            test_component,
+            TestProps {
+                message: "Test".to_string(),
+            },
+        );
         let mut lifecycle_manager = LifecycleManager::new(component_instance, Context::new());
 
         // Test enhanced mount with context
@@ -561,7 +570,7 @@ mod enhanced_tests {
     fn test_mount_context_creation() {
         let component_id = ComponentId::new();
         let mount_context = MountContext::new(component_id);
-        
+
         assert_eq!(mount_context.component_id, component_id);
         assert!(mount_context.parent_id.is_none());
     }
@@ -570,7 +579,7 @@ mod enhanced_tests {
     fn test_unmount_context_creation() {
         let component_id = ComponentId::new();
         let unmount_context = UnmountContext::new(component_id, UnmountReason::Removed);
-        
+
         assert_eq!(unmount_context.component_id, component_id);
         assert_eq!(unmount_context.reason, UnmountReason::Removed);
         assert!(!unmount_context.force_cleanup);
